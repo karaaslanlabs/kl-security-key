@@ -80,4 +80,8 @@ Karaaslan Labs does not claim authorship of upstream Pico FIDO/Pico Keys SDK cod
 
 This repository is prepared as a technical proof and open engineering project, not as a consumer hardware launch. Firmware used on the physical validated reference is frozen separately from the curated public-source candidate; public-source builds are validated independently and must not be described as binary-identical unless their hashes actually match.
 
-Karaaslan Labs: <https://karaaslanlabs.com>
+Karaaslan Labs: <https://karaaslanlabs.com>## Engineering inquiries
+
+For bounded WebAuthn/passkey debugging or FIDO2 authenticator/attestation engineering inquiries, contact `contact@karaaslanlabs.com`.
+
+The repository is the technical proof surface; commercial work is scoped separately and does not imply certification, product support, or relying-party acceptance guarantees.
