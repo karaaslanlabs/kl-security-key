@@ -1,0 +1,23 @@
+name: Publication hygiene
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepublish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source and pinned submodule
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Run publication gate
+        run: ./scripts/prepublish-check.sh
