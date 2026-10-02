@@ -18,7 +18,9 @@ The validated engineering reference includes:
 - WebAuthn registration and authentication validated on Windows;
 - packed ES256 attestation with `x5c` using a provisioned device-specific key/certificate;
 - a Karaaslan Labs attestation root and public trust certificate;
-- standards cleanup for the validated runtime profile.
+- standards cleanup for the validated runtime profile;
+- Microsoft Entra ID tenant-local interoperability with the KL AAGUID: device-bound registration, exact AAGUID surfaced in method details, and fresh physical-key authentication: PASS.
+
 ## What is verified vs. what is not
 
 Verified on the physical engineering reference:
@@ -36,7 +38,8 @@ Not claimed:
 - universal relying-party trust or allowlisting;
 - YubiKey/Nitrokey or other vendor equivalence;
 - Karaaslan Labs ownership of the upstream/project USB VID/PID;
-- compatibility with any service merely because protocol registration succeeds.
+- compatibility with any service merely because protocol registration succeeds;
+- Microsoft certification, global vendor recognition, or attested manufacturer verification from the Entra tenant-local result.
 
 See [`THREAT-MODEL.md`](THREAT-MODEL.md) before using this work outside a lab or research context.
 ## Source and build model

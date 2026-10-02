@@ -26,6 +26,19 @@ Public verification identifiers:
 
 Raw account/browser logs are intentionally not published as evidence because they can contain user-specific or relying-party context.
 
+## Microsoft Entra ID tenant-local interoperability — 2026-10-02
+
+Validated with the same physical KL Security Key reference:
+- Entra passkey profile accepted KL AAGUID `d9359dc7-6938-5822-b951-006507247d8f`: PASS;
+- profile scope was narrowed to a dedicated security group and the KL AAGUID allow policy;
+- physical external security-key registration as a device-bound passkey: PASS;
+- Entra method details exposed the exact KL AAGUID: PASS;
+- fresh Microsoft Entra authentication using the registered physical key: PASS.
+
+Attestation enforcement was OFF for this proof and Entra surfaced the method as not attested. Therefore this evidence is limited to tenant-local interoperability and AAGUID-targeted policy behavior; it is not evidence of Microsoft certification, global vendor recognition or trusted-attestation acceptance.
+
+No account identifiers, credential IDs, tenant IDs, TAP values or raw admin screenshots are published with this evidence.
+
 ## Curated public-source candidate
 
 The candidate is built from:
