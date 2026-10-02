@@ -45,6 +45,7 @@ done
 
 [[ -z "$(git ls-files '*.uf2' '*.bin' '*.elf')" ]] || fail "generated firmware binary is tracked"
 grep -q 'Not FIDO Alliance certified' README.md || fail "README certification disclaimer missing"
+grep -q '^## Engineering inquiries$' README.md || fail "README engineering-inquiries heading missing/malformed"
 grep -q 'not allocated to Karaaslan Labs' NOTICE.md || fail "USB identity disclaimer missing"
 
 echo "PREPUBLISH CHECK: PASS"
