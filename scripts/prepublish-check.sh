@@ -19,6 +19,7 @@ python3 "$ROOT/scripts/apply-sdk-overlay.py" --check
 
 actual_root_sha="$(sha256sum certs/KL-Security-Key-Root-CA-v1.cert.pem | awk '{print $1}')"
 [[ "$actual_root_sha" == "$EXPECTED_ROOT_SHA" ]] || fail "public Root CA hash mismatch"
+[[ ! -x certs/KL-Security-Key-Root-CA-v1.cert.pem ]] || fail "public Root CA certificate must not be executable"
 
 python3 -m py_compile tools/verify_packed_attestation.py
 scan_args=(--exclude=.git --exclude=prepublish-check.sh --exclude-dir='build*' --exclude-dir='__pycache__')
