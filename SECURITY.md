@@ -1,25 +1,51 @@
 # Security Policy
 
-## Scope
+## Supported scope
 
-Security issues in KL-specific changes, build scripts, attestation handling, user-presence behavior, USB-profile changes, or integration behavior are in scope for Karaaslan Labs.
+Security reports are accepted for the current `main` branch and the currently documented KL Security Key engineering reference. Historical commits, local experiments, forks, and unmodified upstream behavior are handled on a best-effort basis.
 
-Issues that reproduce unchanged in upstream `pico-fido` / `pico-keys-sdk` should also be reported to the relevant upstream project.
+KL-specific security issues can include:
+- authenticator / CTAP / WebAuthn behavior introduced by KL changes;
+- attestation and certificate handling;
+- user-presence and user-verification behavior;
+- USB profile and interface changes;
+- build, packaging, provisioning, validation, or integration logic maintained by Karaaslan Labs.
 
-## Reporting
+Issues that reproduce unchanged in upstream `pico-fido` / `pico-keys-sdk` should also be reported to the relevant upstream project. We may route an upstream-only report to the appropriate maintainer.
 
-Please do **not** open a public issue for an unpatched vulnerability.
+## Reporting a vulnerability
 
-Contact Karaaslan Labs at `contact@karaaslanlabs.com` with:
-- affected commit/profile;
-- hardware/board details;
-- attack prerequisites;
+Please **do not open a public GitHub issue, discussion, or pull request for an unpatched vulnerability**.
+
+Report privately to `contact@karaaslanlabs.com` and include, when possible:
+- affected commit, component, or profile;
+- hardware / board details;
+- attack prerequisites and required access;
+- expected versus observed behavior;
 - security impact;
-- minimal reproduction steps;
-- sanitized logs or traces if useful.
+- minimal reproduction steps or proof of concept;
+- sanitized logs, traces, or screenshots if useful.
 
-Never send private attestation keys, root private keys, PINs, credentials, account tokens, credential databases, or raw device images containing secrets.
+Do **not** send private attestation keys, root private keys, PINs, account credentials, session tokens, credential databases, recovery material, or raw device images containing secrets.
 
-## Response boundary
+## Coordinated disclosure
 
-This experimental project has no guaranteed security-response SLA. Reports will be triaged according to impact and reproducibility.
+Please allow reasonable time for triage, reproduction, remediation, and publication before public disclosure. Karaaslan Labs will use best-effort communication and may request additional technical detail or a disclosure timeline appropriate to the severity and reproducibility of the issue.
+
+If a report affects upstream code or another vendor, coordinated disclosure may require involving that maintainer or vendor before publication.
+
+## Project security boundaries
+
+KL Security Key is an experimental engineering / interoperability project. It is **not represented as**:
+- FIDO Alliance certified hardware;
+- secure-element-backed high-assurance hardware;
+- universally trusted or allowlisted by relying parties;
+- a substitute for an independently evaluated commercial security key.
+
+A security report should be evaluated against the project's documented threat model and stated guarantees, not against guarantees the project does not make.
+
+## Bug bounty and response SLA
+
+There is currently **no monetary bug bounty program and no guaranteed response SLA**. Reports are prioritized by credible impact, exploitability, affected scope, and reproducibility.
+
+Responsible, technically useful reports may be acknowledged publicly with the reporter's permission after remediation or coordinated disclosure.
