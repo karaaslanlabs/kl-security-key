@@ -592,7 +592,8 @@ bool check_user_presence(void) {
 
 bool check_user_presence_for_credential(bool require_button) {
     uint32_t timeout_seconds = require_button ? button_timeout_seconds() : 0;
-    return check_user_presence_internal(timeout_seconds, false);
+    // KL Security Key: FORCE_BUTTON_WAIT must also apply to GetAssertion.
+    return check_user_presence_internal(timeout_seconds, true);
 }
 
 void fido_led_3_blinks(void) {

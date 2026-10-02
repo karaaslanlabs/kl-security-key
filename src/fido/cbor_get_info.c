@@ -93,13 +93,12 @@ int cbor_get_info(void) {
 
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, 0x01));
     bool alwaysUv = (get_opts() & FIDO2_OPT_AUV) || (file_has_data(ef_pin) && !keydev_unlocked);
-    CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 4 + !alwaysUv));
+    CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 3 + !alwaysUv));
     if (!alwaysUv) {
         CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "U2F_V2"));
     }
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "FIDO_2_0"));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "FIDO_2_1"));
-    CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "FIDO_2_2"));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "FIDO_2_3"));
     CBOR_CHECK(cbor_encoder_close_container(&mapEncoder, &arrayEncoder));
 
@@ -165,9 +164,14 @@ int cbor_get_info(void) {
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, MAX_CRED_ID_LENGTH)); // MAX_CRED_ID_MAX_LENGTH
 
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, 0x09));
+#ifdef KL_FIDO_ONLY_RUNTIME
+    CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 1));
+    CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "usb"));
+#else
     CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 2));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "usb"));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "smart-card"));
+#endif
     CBOR_CHECK(cbor_encoder_close_container(&mapEncoder, &arrayEncoder));
 
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, 0x0A));
@@ -261,9 +265,14 @@ int cbor_get_info(void) {
     CBOR_CHECK(cbor_encode_byte_string(&mapEncoder, enc_identifier, sizeof(enc_identifier)));
 
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, 0x1A));
+#ifdef KL_FIDO_ONLY_RUNTIME
+    CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 1));
+    CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "usb"));
+#else
     CBOR_CHECK(cbor_encoder_create_array(&mapEncoder, &arrayEncoder, 2));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "usb"));
     CBOR_CHECK(cbor_encode_text_stringz(&arrayEncoder, "smart-card"));
+#endif
     CBOR_CHECK(cbor_encoder_close_container(&mapEncoder, &arrayEncoder));
 
     CBOR_CHECK(cbor_encode_uint(&mapEncoder, 0x1B));

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SDK="$ROOT/pico-keys-sdk"
+EXPECTED_SDK="50699e53e8ada214c27f6c9b66ea3b6f127fc655"
+EXPECTED_ROOT_SHA="29591f774b9fe727afb3afa4bbf2b27c3076c62958e4a3eef226a073444d830e"
+
+fail() { echo "PREPUBLISH FAIL: $*" >&2; exit 1; }
+
+cd "$ROOT"
+git diff --check
+
+actual_sdk="$(git -C "$SDK" rev-parse HEAD)"
+[[ "$actual_sdk" == "$EXPECTED_SDK" ]] || fail "SDK commit drift: $actual_sdk"
+[[ -z "$(git -C "$SDK" status --porcelain)" ]] || fail "SDK submodule is dirty"
+[[ ! -e "$SDK/third-party" ]] || fail "SDK dependency cache must be absent from publish candidate"
+python3 "$ROOT/scripts/apply-sdk-overlay.py" --check
+
+actual_root_sha="$(sha256sum certs/KL-Security-Key-Root-CA-v1.cert.pem | awk '{print $1}')"
+[[ "$actual_root_sha" == "$EXPECTED_ROOT_SHA" ]] || fail "public Root CA hash mismatch"
+
+python3 -m py_compile tools/verify_packed_attestation.py
+scan_args=(--exclude=.git --exclude=prepublish-check.sh --exclude-dir='build*' --exclude-dir='__pycache__')
+
+if grep -RIlE '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----' "${scan_args[@]}" . >/dev/null 2>&1; then
+  fail "private-key PEM block found in publish candidate"
+fi
+if grep -RIlE 'C:\\Users\\|/home/karaaslan|Ömer' "${scan_args[@]}" . >/dev/null 2>&1; then
+  fail "local host/user path leaked into publish candidate"
+fi
+if grep -RIlE '89fb94b7-06c9-3673-9b7e-30526d968145|FIDO_2_2' "${scan_args[@]}" . >/dev/null 2>&1; then
+  fail "stale upstream identity/GetInfo marker found"
+fi
+
+for forbidden in \
+  .github/FUNDING.yml \
+  ENTERPRISE.md \
+  metadata/pico-fido.metadata.json \
+  metadata/pico-fido.test.metadata.json \
+  tests/fido-alliance-conformance-results.md; do
+  [[ ! -e "$forbidden" ]] || fail "misleading inherited artifact still present: $forbidden"
+done
+
+[[ -z "$(git ls-files '*.uf2' '*.bin' '*.elf')" ]] || fail "generated firmware binary is tracked"
+grep -q 'Not FIDO Alliance certified' README.md || fail "README certification disclaimer missing"
+grep -q 'not allocated to Karaaslan Labs' NOTICE.md || fail "USB identity disclaimer missing"
+
+echo "PREPUBLISH CHECK: PASS"

@@ -769,7 +769,10 @@ int cbor_make_credential(const uint8_t *data, size_t len) {
     }
 
     bool self_attestation = true;
-    if (enterpriseAttestation == 2 || (ka && ka->use_self_attestation == pfalse)) {
+#ifdef KL_PACKED_BASIC_ATTESTATION
+    self_attestation = false;
+#endif
+    if (!self_attestation || enterpriseAttestation == 2 || (ka && ka->use_self_attestation == pfalse)) {
         mbedtls_ecp_keypair_free(&ekey);
         mbedtls_ecp_keypair_init(&ekey);
         uint8_t key[32] = {0};
@@ -780,6 +783,11 @@ int cbor_make_credential(const uint8_t *data, size_t len) {
         mbedtls_platform_zeroize(key, sizeof(key));
         md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
         self_attestation = false;
+        ret = mbedtls_md(md, aut_data, aut_data_len + clientDataHash.len, hash);
+        if (ret != 0) {
+            mbedtls_ecp_keypair_free(&ekey);
+            CBOR_ERROR(CTAP2_ERR_PROCESSING);
+        }
     }
     if (md != NULL) {
         ret = mbedtls_ecdsa_write_signature(&ekey, mbedtls_md_get_type(md), hash, mbedtls_md_get_size(md), sig, sizeof(sig), &olen, random_fill_iterator, NULL);

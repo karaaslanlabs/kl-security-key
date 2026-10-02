@@ -1,50 +1,28 @@
 ## Summary
 
-Describe in plain language what this PR does and why.
+What does this change do and why?
 
-- What problem does it solve?
-- Is it a bug fix, a new feature, a cleanup/refactor…?
+## Scope / provenance
 
+- [ ] KL-specific change
+- [ ] Upstream-derived change (link/commit noted below)
+- [ ] Documentation/tooling only
 
-## Details / Impact
+Upstream reference, if applicable:
 
-Please include any relevant details:
+## Security / identity impact
 
-- Hardware / board(s) tested:
-- Firmware / commit/base version:
-- Security impact (if any):
-  - e.g. changes PIN handling, touches key storage, affects attestation, etc.
-- Behavior changes:
-  - e.g. new command, new API surface, different defaults, etc.
+Does this change affect credentials, key material, PIN/UV, user presence, attestation, AAGUID, USB identity, metadata, reset/recovery, or trust behavior? Explain.
 
+## Validation
 
-## Testing
+- Hardware/profile tested:
+- Commands/tests run:
+- Expected result:
+- Actual result:
 
-How did you test this change?
+Do not attach secrets or unsanitized account/device data.
 
-- Steps to reproduce / validate:
-- Expected vs actual results:
-- Any logs / traces (please remove secrets):
+## Licensing
 
-
-## Licensing confirmation (required)
-
-By checking the box below, you confirm ALL of the following:
-
-- You are the author of this contribution, or you have the right to contribute it.
-- You have read `CONTRIBUTING.md`.
-- You agree that this contribution may be merged, used, modified, and redistributed:
-  - under the AGPLv3 Community Edition, **and**
-  - under any proprietary / commercial / Enterprise editions of this project,
-    now or in the future.
-- You understand that submitting this PR does not create any support obligation,
-  SLA, or guarantee of merge.
-
-**I confirm the above licensing terms:**
-
-- [ ] Yes, I agree
-
-
-## Anything else?
-
-Optional: mention known limitations, follow-ups, or if this is related to an existing Issue.
+- [ ] I have the right to submit this contribution and agree it may be distributed under the repository's AGPL-3.0 license.

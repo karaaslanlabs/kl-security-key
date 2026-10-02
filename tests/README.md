@@ -1,28 +1,19 @@
-# Tests Documentation
+# Tests
 
-This directory contains Pico Fido test code and conformance-related documentation.
+This directory is inherited primarily from upstream `pico-fido` and contains protocol/integration test tooling.
 
-## Windows launchers
+## Important provenance boundary
 
-The top-level test and Docker workflows have `.bat` launchers for Windows.
-They use Docker Desktop and mount the checkout at `/workspace` in the Linux
-test container. The `.sh` counterparts remain available for Linux and the
-Ubuntu GitHub Actions jobs.
+The presence of upstream test code does **not** mean the KL Security Key profile has independently passed every upstream or FIDO Alliance conformance test.
 
-## FIDO Alliance conformance results
+Karaaslan Labs currently publishes only evidence that was actually validated on the KL engineering reference, including:
+- physical WebAuthn registration;
+- physical authentication/GetAssertion;
+- Windows CTAP2 provider path;
+- packed-attestation signature verification;
+- KL attestation certificate-chain verification;
+- AAGUID agreement across authenticator data and certificate extension.
 
-The current FIDO Alliance Conformance Test App results are documented in
-[`fido-alliance-conformance-results.md`](./fido-alliance-conformance-results.md).
+A prior upstream conformance-results document was intentionally removed from this derivative candidate because it described an upstream test run and could be misread as KL Security Key certification/conformance evidence.
 
-Those results show that the tested Pico Fido firmware passed the conformance
-tests captured in that report.
-
-## Important limitation
-
-Passing the FIDO Alliance conformance tests does **not** mean Pico Fido is
-FIDO Alliance certified.
-
-Official certification requires the separate FIDO Alliance certification
-process and any corresponding approval/listing from the FIDO Alliance. This
-documentation only states that the firmware passed the conformance tests that
-would be used as part of that certification path.
+FIDO Alliance certification is a separate process and is not claimed by this project.

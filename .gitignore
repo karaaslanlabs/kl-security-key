@@ -3,3 +3,27 @@ build*/
 legacy/
 .DS_Store
 
+# Local environments / secrets
+.env
+.env.*
+*.key
+*.key.pem
+*.p12
+*.pfx
+*private*.pem
+private/
+**/private/
+
+# Raw/private evidence and host traces
+evidence/raw/
+logs/
+*.evtx
+*.etl
+latest_packed*.txt
+
+# Generated firmware/build artifacts outside build directories
+*.uf2
+*.elf
+*.elf.map
+*.bin
+*.hex
