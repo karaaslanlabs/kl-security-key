@@ -4,7 +4,7 @@ No Karaaslan Labs FIDO Metadata Service statement is published in this repositor
 
 The engineering project has a private working draft used for MDS readiness review, but that draft is intentionally excluded until:
 - the Karaaslan Labs vendor-account review is resolved;
-- attestation semantics are confirmed against the live MDS schema/portal;
+- a truthful attestation type is confirmed against the live MDS schema/portal; the frozen device-specific `x5c` reference is not treated as `basic_full`;
 - the statement passes a separate publication review.
 
 Do not infer FIDO certification from this directory or from any future metadata publication.

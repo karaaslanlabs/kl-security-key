@@ -21,6 +21,7 @@ The Root CA **private key is not part of this repository**.
 The device attestation private key is also not published and was never exported from the device workflow used for the validated reference.
 
 The public Root CA certificate is authenticator trust metadata; it is not a publicly trusted TLS/Web PKI CA.
+
 ## Provisioning model
 
 The reference device generated/retained its own device key material and was provisioned with the corresponding KL attestation leaf certificate. Certificate persistence was verified before the packed-attestation registration test.
@@ -43,4 +44,6 @@ These checks establish internal consistency of the tested attestation path. They
 
 Karaaslan Labs has prepared MDS-readiness material, but no metadata statement is published in this repository yet.
 
-The final metadata representation of the device-specific key/leaf model must be reviewed against the current FIDO Metadata Service schema and policy before submission. In particular, this project does not freeze a `basic_full` claim in public metadata until that semantic review is complete.
+FIDO defines `basic_full` around an attestation private key shared by a class/model of authenticators. The frozen KL reference instead uses a device-specific attestation key and device-specific leaf, so this repository does not describe that frozen profile as `basic_full` for MDS purposes. A truthful MDS profile must be selected and physically validated separately before submission.
+
+A device-specific attestation certificate can also act as a cross-relying-party correlation handle. The current `x5c` design is therefore retained as engineering evidence, not presented as the final privacy model for broad distribution.
