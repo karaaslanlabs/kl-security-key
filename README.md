@@ -89,4 +89,6 @@ Karaaslan Labs: <https://karaaslanlabs.com>
 
 For bounded WebAuthn/passkey debugging or FIDO2 authenticator/attestation engineering inquiries, contact `contact@karaaslanlabs.com`.
 
+Paid debugging service: <https://www.upwork.com/services/product/development-it-get-expert-webauthn-passkey-and-fido2-authentication-debugging-2106330281996723797>. This service covers software/authentication engineering; the physical KL Security Key is not offered for sale.
+
 The repository is the technical proof surface; commercial work is scoped separately and does not imply certification, product support, or relying-party acceptance guarantees.
