@@ -21,3 +21,9 @@ This derivative adds or changes, among other things:
 SDK changes are applied by `scripts/apply-sdk-overlay.py`, which is pinned to the exact upstream SDK commit and refuses mixed or unknown source states.
 
 Karaaslan Labs does not claim authorship of upstream Pico FIDO / Pico Keys SDK code. Original upstream copyright and license notices are intentionally preserved.
+
+## Curated public surface
+
+This repository is a focused KL Security Key engineering derivative, not a mirror of every upstream artifact. The public branch intentionally omits unrelated inherited research documents and legacy release/VID-PID patch helpers that are not part of the validated KL reference path.
+
+Those omissions do not change attribution or erase provenance: upstream authorship remains available in Git history and in the referenced upstream repositories. Karaaslan Labs does not reattribute omitted or retained upstream work.
