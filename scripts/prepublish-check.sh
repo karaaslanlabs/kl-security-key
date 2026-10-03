@@ -38,6 +38,9 @@ if grep -RIlE 'gh[opsu]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}' "${scan_args[@]}
 fi
 
 for forbidden in \
+  build_pico_fido.sh \
+  pico-fido-patch-vidpid.sh \
+  docs/vault \
   .github/FUNDING.yml \
   .github/workflows/codeql.yml \
   .github/workflows/nightly.yml \

@@ -27,7 +27,7 @@ The reference device generated/retained its own device key material and was prov
 
 The public build option `KL_PACKED_BASIC_ATTESTATION` tells the authenticator to use provisioned device attestation material for ordinary packed attestation. It does **not** create or ship private key material.
 
-A fresh board therefore needs a separate, security-reviewed provisioning process before this profile can produce the same manufacturer-rooted `x5c` behavior. The original lab device's certificate must not be copied as a universal identity for other devices.
+A fresh board therefore needs a separate, security-reviewed provisioning process before this profile can produce the same KL Root CA-chained `x5c` behavior. The original lab device's certificate must not be copied as a universal identity for other devices.
 
 ## What was cryptographically verified
 
