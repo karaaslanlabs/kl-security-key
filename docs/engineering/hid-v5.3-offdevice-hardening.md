@@ -126,3 +126,29 @@ the exact picotool tag commit and compiler version; it does **not** validate
 the full upstream supply chain or authorize publishing binaries, flashing,
 resetting or using hardware. It is separate from GitHub Actions: no full
 GitHub-hosted ARM build is claimed.
+
+
+### RP2040 linker RAM budget gate (off-device static check)
+
+The isolated ARM builder runs `scripts/check-v53-memory-layout.py`
+**after** linking the ELF and **before** reporting a successful UF2 build.
+It checks RP2040 main RAM and scratch-stack linker symbols, and enforces
+a **project policy** minimum 128 KiB address gap between `__end__`
+and `__HeapLimit`. The threshold is an engineering regression budget,
+not a chip or FIDO requirement.
+
+At the audited source commit, linker evidence shows:
+- `.data`: 8,008 bytes, `.bss`: 87,128 bytes
+- Static end: `0x20017480`; `__HeapLimit=0x20040000`
+- Linker gap: **166,784 bytes (162.88 KiB)**; policy PASS
+- Core 0 and core 1 linker stack reservations: **2,048 bytes each**
+- Production HID real-source host test: one FIDO-only HID interface has
+  **9,742 bytes logical initial HID allocations** across four `calloc`
+  calls. The requested buffer sizes exclude malloc metadata, USB queues,
+  timeout arrays and other runtime allocations.
+
+A higher test threshold of 200 KiB was deliberately rejected, proving
+the negative gate triggers. These figures are **not** runtime free-heap
+measurement. RP2040 heap fragmentation, core-stack high-water mark,
+USB interrupt/core concurrency and allocation failure outside HID remain
+untested on actual hardware. The WIP branch remains NOT merge-ready.

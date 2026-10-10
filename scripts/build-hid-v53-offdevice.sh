@@ -96,6 +96,10 @@ cmake -S "$WORK/repo" -B "$WORK/build" -G Ninja \
   -DENABLE_OTP_APP=ON \
   -DENABLE_OATH_APP=ON
 cmake --build "$WORK/build" --parallel "${JOBS:-4}"
+# Link-time headroom regression gate. This does NOT certify runtime heap safety.
+python3 "$ROOT/scripts/check-v53-memory-layout.py" \
+  --elf "$WORK/build/pico_fido.elf" \
+  --toolchain-bin "$PICO_TOOLCHAIN_PATH"
 UF2="$WORK/build/pico_fido.uf2"
 test -f "$UF2"
 echo "ISOLATED_V53_ARM_BUILD_PASS"
