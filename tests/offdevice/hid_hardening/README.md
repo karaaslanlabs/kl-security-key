@@ -38,3 +38,18 @@ identifiers, or locally generated logs.
 GitHub Actions workflow: .github/workflows/hid-v5.3-offdevice-regression.yml
 checks the pinned SDK commit, applies both WIP patches and runs the 21 host
 regressions. Green workflow does NOT establish device or FIDO conformance.
+
+## Keyboard HID / OTP report regression
+
+Run with the product patch applied:
+
+```bash
+python3 tests/offdevice/hid_hardening/run_otp_callback_regression.py --otp-source src/fido/otp.c
+```
+
+This test extracts the exact `otp_status` and `otp_hid_get_report_cb`
+function implementations from `otp.c`, compiles them with minimal stubs
+under AddressSanitizer and UBSan, and checks response-pointer restoration,
+status length restoration, initialized first byte, guarded report boundaries,
+and report length clamping. It is **not** a build or integration test of
+the entire OTP translation unit or live keyboard HID hardware.

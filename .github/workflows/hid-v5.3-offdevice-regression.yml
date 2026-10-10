@@ -52,3 +52,9 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/offdevice/hid_hardening/run_host_regressions.py --sdk pico-keys-sdk
+
+      - name: Run keyboard HID OTP callback source-extraction regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/run_otp_callback_regression.py --otp-source src/fido/otp.c

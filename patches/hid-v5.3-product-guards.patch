@@ -75,6 +75,29 @@
      }
      else if (otp_curr_seq == otp_exp_seq && otp_exp_seq > 0) {
          memset(buffer, 0, 7);
+@@ -1155,10 +1167,20 @@
+         otp_curr_seq = otp_exp_seq = 0;
+     }
+     else {
++        /* The HID GET_REPORT destination belongs to the caller and may hold
++         * only an eight-byte keyboard report. Never leave the shared APDU
++         * response pointer referencing this temporary buffer.
++         */
++        uint8_t *old_rdata = apdu.rdata;
++        uint16_t old_rlen = apdu.rlen;
++        memset(buffer, 0, 8);
+         res_APDU = buffer;
+         otp_status(true);
++        res_APDU = old_rdata;
++        res_APDU_size = old_rlen;
+         DEBUG_DATA(buffer, 8);
+     }
+ 
+-    return reqlen;
+-}
++    /* This callback initializes exactly one 8-byte keyboard report. */
++    return 8;
++}
 --- a/src/fido/version.h
 +++ b/src/fido/version.h
 @@ -18,7 +18,7 @@

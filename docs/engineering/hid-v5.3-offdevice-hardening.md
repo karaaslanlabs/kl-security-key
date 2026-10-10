@@ -7,7 +7,7 @@
 - Frozen v5.2 reference UF2 SHA256:
   `8b50a9fc27094e682e0436c494a6320a97c47fdcb05bbefffe98729f18abe0d8`.
 - **Experimental** v5.3 UF2 SHA256 (off-device, never flashed):
-  `2f526a52f345e04d24e84772315d3bb3fa534748a614d081a2f4254277a7932b`.
+  `c7c022c26764d8ab98795d8b5e75d0e42f15b0f0260514f10b08e501a8c80b9d`.
 
 Changes captured here as two reviewable patches:
 
@@ -35,3 +35,11 @@ hardware; reviewer flagged multi-interface keyboard OTP buffer pointer
 lifetime risk, unclosed for non-FIDO-only modes. Unpublished draft; no
 physical flash/reset, credential/attestation mutation, MDS, or certification
 claim.
+
+### Additional keyboard-HID OTP callback hardening (isolated test)
+The original keyboard GET_REPORT callback redirected the global APDU response
+pointer to an 8-byte temporary report and did not restore its length/pointer;
+the status reply also left the first byte uninitialized. The exact source
+function harness reproduced 5 failures before the patch and passed after
+restoring APDU state, clearing 8 output bytes and returning only 8 bytes.
+This **does not** validate full OTP firmware behavior or close hardware gates.
