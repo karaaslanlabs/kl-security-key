@@ -34,3 +34,7 @@ is authorized by this WIP bundle.
 
 Do not commit UF2s, sensitive PKI material, device-specific attestation
 identifiers, or locally generated logs.
+
+GitHub Actions workflow: .github/workflows/hid-v5.3-offdevice-regression.yml
+checks the pinned SDK commit, applies both WIP patches and runs the 21 host
+regressions. Green workflow does NOT establish device or FIDO conformance.
