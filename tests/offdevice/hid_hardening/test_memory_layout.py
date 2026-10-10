@@ -6,7 +6,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts" / "check-v53-memory-layout.py"
 SPEC = importlib.util.spec_from_file_location("kl_v53_memory_layout", SCRIPT)
 memory_layout = importlib.util.module_from_spec(SPEC)
