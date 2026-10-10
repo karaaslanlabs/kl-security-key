@@ -17,6 +17,8 @@ Issues that reproduce unchanged in upstream `pico-fido` / `pico-keys-sdk` should
 
 Please **do not open a public GitHub issue, discussion, or pull request for an unpatched vulnerability**.
 
+This includes **draft pull requests** and review comments: drafts are publicly visible in a public repository. Send potentially exploit-enabling details, unpublished reproductions, and device-specific traces privately first. A green CI check or an experimental security fix does not establish full hardware security or FIDO conformance.
+
 Report privately to `contact@karaaslanlabs.com` and include, when possible:
 - affected commit, component, or profile;
 - hardware / board details;
