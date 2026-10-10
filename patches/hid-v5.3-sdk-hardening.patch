@@ -1,0 +1,405 @@
+--- a/src/usb/hid/hid.c
++++ b/src/usb/hid/hid.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <stddef.h>
+ #include "picokeys.h"
+ #include "serial.h"
+ #include "pico_time.h"
+@@ -40,7 +41,19 @@
+ 
+ #define CTAPHID_KEEPALIVE_CANCEL_STATUS 0x2D
+ 
+-static usb_buffer_t *hid_rx = NULL, *hid_tx = NULL;
++/* Dedicated CTAP HID response buffer. Other USB/CCID buffers stay unchanged.
++ * Include a full report of tailroom so the final 64-byte HID send remains
++ * within allocated storage even for CTAP maximum-length messages.
++ */
++#define HID_TX_BUFFER_SIZE (CTAP_MAX_PACKET_SIZE + HID_RPT_SIZE + offsetof(CTAPHID_FRAME, init.data))
++typedef struct hid_tx_buffer {
++    uint8_t buffer[HID_TX_BUFFER_SIZE];
++    uint16_t r_ptr;
++    uint16_t w_ptr;
++} hid_tx_buffer_t;
++
++static usb_buffer_t *hid_rx = NULL;
++static hid_tx_buffer_t *hid_tx = NULL;
+ 
+ PACK(
+ typedef struct msg_packet {
+@@ -51,6 +64,7 @@
+ 
+ msg_packet_t msg_packet = { 0 };
+ 
++extern uint32_t last_packet_time;
+ static uint16_t *send_buffer_size = NULL;
+ static write_status_t *last_write_result = NULL;
+ 
+@@ -66,25 +80,45 @@
+ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize);
+ #endif
+ 
++static uint8_t hid_allocated_itfs = 0;
++
++static bool hid_buffers_ready(void) {
++    return hid_allocated_itfs > 0 && hid_allocated_itfs == ITF_HID_TOTAL &&
++           send_buffer_size && last_write_result && hid_rx && hid_tx;
++}
++
++static bool hid_ctap_ready(void) {
++    return hid_buffers_ready() && ITF_HID_CTAP < hid_allocated_itfs;
++}
++
+ void hid_init(void) {
+-    if (ITF_HID_TOTAL == 0) {
+-        return;
+-    }
+-    if (send_buffer_size == NULL) {
+-        send_buffer_size = (uint16_t *)calloc(ITF_HID_TOTAL, sizeof(uint16_t));
+-    }
+-    if (last_write_result == NULL) {
+-        last_write_result = (write_status_t *)calloc(ITF_HID_TOTAL, sizeof(write_status_t));
+-    }
+-    if (hid_rx == NULL) {
+-        hid_rx = (usb_buffer_t *)calloc(ITF_HID_TOTAL, sizeof(usb_buffer_t));
+-    }
+-    if (hid_tx == NULL) {
+-        hid_tx = (usb_buffer_t *)calloc(ITF_HID_TOTAL, sizeof(usb_buffer_t));
+-    }
++    if (ITF_HID_TOTAL == 0 || hid_allocated_itfs != 0) {
++        return;
++    }
++    /* Publish complete storage only. An allocation failure disables HID safely
++     * and releases partial allocations so a later initialization can retry. */
++    uint16_t *sizes = (uint16_t *)calloc(ITF_HID_TOTAL, sizeof(uint16_t));
++    write_status_t *results = (write_status_t *)calloc(ITF_HID_TOTAL, sizeof(write_status_t));
++    usb_buffer_t *rx = (usb_buffer_t *)calloc(ITF_HID_TOTAL, sizeof(usb_buffer_t));
++    hid_tx_buffer_t *tx = (hid_tx_buffer_t *)calloc(ITF_HID_TOTAL, sizeof(hid_tx_buffer_t));
++    if (!sizes || !results || !rx || !tx) {
++        free(sizes);
++        free(results);
++        free(rx);
++        free(tx);
++        return;
++    }
++    send_buffer_size = sizes;
++    last_write_result = results;
++    hid_rx = rx;
++    hid_tx = tx;
++    hid_allocated_itfs = ITF_HID_TOTAL;
+ }
+ 
+ int driver_init_hid(void) {
++    if (!hid_ctap_ready()) {
++        return PICOKEYS_ERR_BLOCKED;
++    }
+ #ifndef ENABLE_EMULATION
+     static bool _init = false;
+     if (_init == false) {
+@@ -106,7 +140,9 @@
+ 
+     ctap_resp = (CTAPHID_FRAME *) (hid_tx[ITF_HID_CTAP].buffer);
+     apdu.rdata = ctap_resp->init.data;
+-    memset(ctap_resp, 0, sizeof(CTAPHID_FRAME));
++    /* GET RESPONSE reuses unsent APDU bytes in this staging buffer. */
++    memset(ctap_resp, 0, apdu_is_response_pending() ?
++           offsetof(CTAPHID_FRAME, init.data) : sizeof(CTAPHID_FRAME));
+ 
+     usb_set_timeout_counter(ITF_HID, 200);
+ 
+@@ -127,6 +163,9 @@
+ // Return zero will cause the stack to STALL request
+ 
+ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) {
++    if (!hid_buffers_ready() || itf >= hid_allocated_itfs || !buffer || reqlen == 0) {
++        return 0;
++    }
+     // TODO not Implemented
+     (void) itf;
+     (void) report_id;
+@@ -143,6 +182,11 @@
+ }
+ 
+ static uint32_t hid_write_offset(uint16_t size, uint16_t offset) {
++    if (!hid_ctap_ready() ||
++        (size_t)hid_tx[ITF_HID_CTAP].w_ptr + size + offset > HID_TX_BUFFER_SIZE ||
++        (size_t)hid_tx[ITF_HID_CTAP].r_ptr + offset + HID_RPT_SIZE > HID_TX_BUFFER_SIZE) {
++        return 0;
++    }
+     if (hid_tx[ITF_HID_CTAP].buffer[offset] != 0x81) {
+         DEBUG_PAYLOAD(&hid_tx[ITF_HID_CTAP].buffer[offset], size);
+     }
+@@ -225,7 +269,7 @@
+ 
+ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_t len) {
+     //printf("report_complete %d %d %d\n", instance, len, send_buffer_size[instance]);
+-    if (instance == ITF_HID_CTAP && len == 64) {
++    if (hid_ctap_ready() && report && instance == ITF_HID_CTAP && len == HID_RPT_SIZE) {
+ #ifdef ESP_PLATFORM
+         taskENTER_CRITICAL(&mutex);
+ #endif
+@@ -266,20 +310,33 @@
+ }
+ 
+ int driver_write_hid(uint8_t itf, const_byte_array_t buffer) {
+-    if ((!buffer.data && buffer.len > 0) || buffer.len > UINT16_MAX) {
++    if (!hid_buffers_ready() || itf >= hid_allocated_itfs ||
++        (!buffer.data && buffer.len > 0) || buffer.len > HID_RPT_SIZE) {
+         return 0;
+     }
+     uint16_t buffer_len = (uint16_t)buffer.len;
+     if (last_write_result[itf] == WRITE_PENDING) {
+         return 0;
+     }
+-    bool r = tud_hid_n_report(itf, 0, buffer.data, buffer_len);
++    /* Pad the submitted copy, preserving unsent APDU response data in staging. */
++    uint8_t report[HID_RPT_SIZE];
++    const uint8_t *data = buffer.data;
++    if (itf == ITF_HID_CTAP && buffer_len == HID_RPT_SIZE) {
++        memcpy(report, data, sizeof(report));
++        const CTAPHID_FRAME *frame = (const CTAPHID_FRAME *)report;
++        size_t used = FRAME_TYPE(frame) == TYPE_INIT ?
++                      7u + MIN((size_t)MSG_LEN(frame), (size_t)57) :
++                      5u + MIN((size_t)send_buffer_size[itf], (size_t)59);
++        memset(report + used, 0, sizeof(report) - used);
++        data = report;
++    }
++    bool r = tud_hid_n_report(itf, 0, data, buffer_len);
+     last_write_result[itf] = r ? WRITE_PENDING : WRITE_FAILED;
+     if (last_write_result[itf] == WRITE_FAILED) {
+         return 0;
+     }
+ #ifdef ENABLE_EMULATION
+-    tud_hid_report_complete_cb(ITF_HID_CTAP, buffer.data, buffer_len);
++    tud_hid_report_complete_cb(itf, data, buffer_len);
+ #endif
+     return buffer_len > 64 ? 64 : buffer_len;
+ }
+@@ -289,6 +346,9 @@
+ // received data on OUT endpoint ( Report ID = 0, Type = 0 )
+ 
+ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize) {
++    if (!hid_buffers_ready() || itf >= hid_allocated_itfs || !buffer) {
++        return;
++    }
+     // This example doesn't use multiple report and report ID
+     (void) itf;
+     (void) report_id;
+@@ -300,6 +360,13 @@
+             if (bufsize != HID_RPT_SIZE) {
+                 return;
+             }
++            if (hid_rx[itf].r_ptr > hid_rx[itf].w_ptr ||
++                hid_rx[itf].w_ptr > sizeof(hid_rx[itf].buffer) - HID_RPT_SIZE) {
++                hid_rx[itf].r_ptr = hid_rx[itf].w_ptr = 0;
++                msg_packet.len = msg_packet.current_len = 0;
++                last_packet_time = 0;
++                return;
++            }
+             memcpy(hid_rx[itf].buffer + hid_rx[itf].w_ptr, buffer, bufsize);
+             hid_rx[itf].w_ptr += bufsize;
+             int proc_pkt = driver_process_usb_packet_hid(bufsize);
+@@ -312,6 +379,12 @@
+ 
+ uint32_t last_cmd_time = 0, last_packet_time = 0;
+ int ctap_error(uint8_t error) {
++    if (!hid_ctap_ready() || !ctap_req) {
++        return 0;
++    }
++    ctap_resp = (CTAPHID_FRAME *)hid_tx[ITF_HID_CTAP].buffer;
++    hid_tx[ITF_HID_CTAP].r_ptr = hid_tx[ITF_HID_CTAP].w_ptr = 0;
++    send_buffer_size[ITF_HID_CTAP] = 0;
+     memset((uint8_t *)ctap_resp, 0, sizeof(CTAPHID_FRAME));
+     ctap_resp->cid = ctap_req->cid;
+     ctap_resp->init.cmd = CTAPHID_ERROR;
+@@ -345,6 +418,9 @@
+ static uint32_t last_keepalive_time = 0;
+ 
+ int driver_process_usb_nopacket_hid(void) {
++    if (!hid_ctap_ready()) {
++        return 0;
++    }
+     if (last_packet_time > 0 && last_packet_time + 500 < board_millis()) {
+         ctap_error(CTAP1_ERR_MSG_TIMEOUT);
+         last_packet_time = 0;
+@@ -357,13 +433,21 @@
+ extern void *cbor_thread(void *);
+ 
+ uint16_t *get_send_buffer_size(uint8_t itf) {
+-    return &send_buffer_size[itf];
++    return hid_buffers_ready() && itf < hid_allocated_itfs ? &send_buffer_size[itf] : NULL;
+ }
+ 
+ int driver_process_usb_packet_hid(uint16_t read) {
++    if (!hid_ctap_ready() || read != HID_RPT_SIZE ||
++        hid_rx[ITF_HID_CTAP].r_ptr > hid_rx[ITF_HID_CTAP].w_ptr ||
++        hid_rx[ITF_HID_CTAP].w_ptr > sizeof(hid_rx[ITF_HID_CTAP].buffer) ||
++        hid_rx[ITF_HID_CTAP].w_ptr - hid_rx[ITF_HID_CTAP].r_ptr < HID_RPT_SIZE) {
++        return 0;
++    }
+     int apdu_sent = 0;
+     if (read == HID_RPT_SIZE) {
+-        driver_init_hid();
++        if (driver_init_hid() != 0) {
++            return 0;
++        }
+ 
+         hid_rx[ITF_HID_CTAP].r_ptr += HID_RPT_SIZE;
+         if (hid_rx[ITF_HID_CTAP].r_ptr >= hid_rx[ITF_HID_CTAP].w_ptr) {
+@@ -371,6 +455,10 @@
+         }
+         last_packet_time = board_millis();
+         DEBUG_PAYLOAD((uint8_t *)ctap_req, HID_RPT_SIZE);
++        if (msg_packet.len > sizeof(msg_packet.data) || msg_packet.current_len > msg_packet.len) {
++            msg_packet.len = msg_packet.current_len = 0;
++            return ctap_error(CTAP1_ERR_INVALID_LEN);
++        }
+         if (FRAME_TYPE(ctap_req) == TYPE_CONT && msg_packet.len == 0) {
+             last_packet_time = 0;
+             return 0;
+@@ -457,6 +545,8 @@
+             resp->versionInterface = CTAPHID_IF_VERSION;
+             resp->versionMajor = get_version_major ? get_version_major() : PICOKEYS_SDK_VERSION_MAJOR;
+             resp->versionMinor = get_version_minor ? get_version_minor() : PICOKEYS_SDK_VERSION_MINOR;
++            /* Never expose preserved pending-APDU payload via an omitted field. */
++            resp->versionBuild = 0;
+             resp->capFlags = CAPFLAG_WINK | CAPFLAG_CBOR;
+ 
+             ctap_resp->cid = ctap_req->cid;
+@@ -483,6 +573,13 @@
+                  (msg_packet.len == 0 ||
+                   (msg_packet.len == msg_packet.current_len && msg_packet.len > 0))) {
+             if (msg_packet.current_len == msg_packet.len && msg_packet.len > 0) {
++                /* Do not let a CTAPHID PING echo overrun the USB TX staging buffer. */
++                if (msg_packet.len > sizeof(hid_tx[ITF_HID_CTAP].buffer) -
++                                     offsetof(CTAPHID_FRAME, init.data)) {
++                    msg_packet.len = msg_packet.current_len = 0;
++                    last_packet_time = 0;
++                    return ctap_error(CTAP1_ERR_INVALID_LEN);
++                }
+                 memcpy(ctap_resp->init.data, msg_packet.data, msg_packet.len);
+                 driver_exec_finished_hid(msg_packet.len);
+             }
+@@ -535,6 +632,9 @@
+             ctap_resp->init.cmd = ctap_req->init.cmd;
+             ctap_resp->init.data[0] = PICOKEYS_SDK_VERSION_MAJOR;
+             ctap_resp->init.data[1] = PICOKEYS_SDK_VERSION_MINOR;
++            /* VERSION replies carry four bytes; all must be initialized. */
++            ctap_resp->init.data[2] = 0;
++            ctap_resp->init.data[3] = 0;
+             ctap_resp->init.bcntl = 4;
+             driver_write_hid(ITF_HID_CTAP, CONST_BYTE_ARRAY((const uint8_t *)ctap_resp, 64));
+             msg_packet.len = msg_packet.current_len = 0;
+@@ -617,6 +717,9 @@
+ }
+ 
+ static void send_keepalive(void) {
++    if (!hid_ctap_ready() || !ctap_req) {
++        return;
++    }
+     if (thread_type == 1 || cancel_button) {
+         return;
+     }
+@@ -637,6 +740,14 @@
+ }
+ 
+ void driver_exec_finished_hid(uint16_t size_next) {
++    if (!hid_ctap_ready() || !ctap_req || !apdu.rdata) {
++        return;
++    }
++    if (size_next > CTAP_MAX_PACKET_SIZE || (is_nk && size_next > 0 && size_next < 2)) {
++        ctap_error(CTAP1_ERR_INVALID_LEN);
++        apdu.sw = 0;
++        return;
++    }
+     if (size_next > 0) {
+         if (thread_type == 2 && apdu.sw != 0) {
+             ctap_error(apdu.sw & 0xff);
+@@ -653,6 +764,15 @@
+ }
+ 
+ void driver_exec_finished_cont_hid(uint8_t itf, uint16_t size_next, uint16_t offset) {
++    if (!hid_ctap_ready() || itf != ITF_HID_CTAP || !ctap_req) {
++        return;
++    }
++    /* offset is the absolute payload position in TX storage, including header. */
++    if (offset < offsetof(CTAPHID_FRAME, init.data) || size_next > CTAP_MAX_PACKET_SIZE ||
++        (size_t)offset + size_next + HID_RPT_SIZE > sizeof(hid_tx[itf].buffer)) {
++        ctap_error(CTAP1_ERR_INVALID_LEN);
++        return;
++    }
+     offset -= 7;
+     ctap_resp = (CTAPHID_FRAME *) (hid_tx[itf].buffer + offset);
+     ctap_resp->cid = ctap_req->cid;
+@@ -669,8 +789,15 @@
+ void hid_task(void) {
+     const uint32_t status_poll_interval_ms = 1;
+     static uint32_t last_status_poll_ms = 0;
++    if (!hid_ctap_ready()) {
++        return;
++    }
+ #ifdef ENABLE_EMULATION
+     uint16_t rx_len = emul_read(ITF_HID);
++    if (rx_len > sizeof(emul_rx) || rx_len % HID_RPT_SIZE != 0) {
++        emul_rx_size = 0;
++        return;
++    }
+     if (rx_len) {
+         uint16_t rptr = 0;
+         while (rx_len > 0) {
+--- a/src/apdu.c
++++ b/src/apdu.c
+@@ -30,6 +30,11 @@
+ uint8_t *rdata_gr = NULL;
+ uint16_t rdata_bk = 0x0;
+ static bool response_pending = false;
++
++bool apdu_is_response_pending(void) {
++    return response_pending;
++}
++
+ extern uint32_t timeout;
+ bool is_chaining = false;
+ uint8_t chain_buf[2038];
+@@ -185,7 +190,7 @@
+ #ifndef ENABLE_EMULATION
+ #ifdef USB_ITF_HID
+             if (itf == ITF_HID_CTAP) {
+-                driver_exec_finished_cont_hid(itf, apdu.rlen + 2, (uint16_t)(rdata_gr - apdu.rdata));
++                driver_exec_finished_cont_hid(itf, apdu.rlen + 2, (uint16_t)(7u + rdata_gr - apdu.rdata));
+             }
+ #endif
+ #ifdef USB_ITF_CCID
+@@ -215,7 +220,7 @@
+ #ifndef ENABLE_EMULATION
+ #ifdef USB_ITF_HID
+             if (itf == ITF_HID_CTAP) {
+-                driver_exec_finished_cont_hid(itf, (uint16_t)(apdu.ne + 2), (uint16_t)(rdata_gr - apdu.ne - apdu.rdata));
++                driver_exec_finished_cont_hid(itf, (uint16_t)(apdu.ne + 2), (uint16_t)(7u + rdata_gr - apdu.ne - apdu.rdata));
+             }
+ #endif
+ #ifdef USB_ITF_CCID
+--- a/src/apdu.h
++++ b/src/apdu.h
+@@ -72,6 +72,8 @@
+ extern uint16_t apdu_process(uint8_t itf, const_byte_array_t buffer);
+ extern void apdu_finish(void);
+ extern uint16_t apdu_next(void);
++/* Pending response bytes must survive the next transport request. */
++extern bool apdu_is_response_pending(void);
+ extern uint16_t apdu_limit_response(uint16_t size_next, uint16_t max_size);
+ extern void *apdu_thread(void *);
+ extern int bulk_cmd(int (*cmd)(void));
+--- a/src/usb/emulation/emulation.c
++++ b/src/usb/emulation/emulation.c
+@@ -254,7 +254,7 @@
+ void driver_exec_finished_cont_emul(uint8_t itf, uint16_t size_next, uint16_t offset) {
+ #ifdef USB_ITF_HID
+     if (itf == ITF_HID) {
+-        driver_exec_finished_cont_hid(itf, size_next, offset);
++        driver_exec_finished_cont_hid(itf, size_next, (uint16_t)(7u + offset));
+     }
+ #endif
+ #ifdef USB_ITF_CCID
