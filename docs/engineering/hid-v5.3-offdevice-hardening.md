@@ -43,3 +43,56 @@ the status reply also left the first byte uninitialized. The exact source
 function harness reproduced 5 failures before the patch and passed after
 restoring APDU state, clearing 8 output bytes and returning only 8 bytes.
 This **does not** validate full OTP firmware behavior or close hardware gates.
+
+### Off-device firmware build from pinned source
+
+The standalone `scripts/build-hid-v53-offdevice.sh` creates **disposable**
+Git clones of the current branch and pinned SDK, applies the existing KL USB
+identity/FIDO-only overlay plus the two v5.3 patches, then builds RP2040 UF2
+with packed basic attestation **disabled**. It neither contacts a USB device
+nor reads device-specific private keys. The main checkout is never modified.
+
+For an off-device ARM build on Linux/WSL with a locally installed Pico SDK
+and ARM GNU toolchain:
+
+```bash
+export PICO_SDK_PATH=/path/to/pico-sdk
+export PICO_TOOLCHAIN_PATH=/path/to/arm-toolchain/bin
+# Optional for disconnected workstations (must be trusted pinned sources):
+# export KL_PINNED_SDK_SOURCE=/path/to/pinned-sdk-git-checkout
+# export KL_SDK_THIRD_PARTY_CACHE=/path/to/third-party
+# export KL_OFFLINE_PICOTOOL_SOURCE=/path/to/picotool-git-clone
+export KL_V53_OUT_FILE=/path/outside/repository/v53-offdevice.uf2
+bash scripts/build-hid-v53-offdevice.sh
+```
+
+The script normalizes temporary build directory names in compiler-generated
+`__FILE__` strings and pins `SOURCE_DATE_EPOCH` to the reviewed Git commit.
+It refuses to overwrite an existing UF2 and refuses output inside the Git
+checkout. Any generated UF2 is **only** an off-device experimental artifact:
+not a provisioned authenticator, certification, device interoperability
+result, or production release. Toolchain, Pico SDK and cached dependencies
+must be pinned separately before claiming cross-machine reproducibility.
+
+The GitHub host CI checks script syntax only; the complete ARM firmware
+build is verified in a separate Linux/WSL lab environment, not in that CI job.
+
+
+### Local byte-for-byte reproducibility validation (source snapshot)
+
+Two clean, separate, disposable RP2040 builds from the same WIP source snapshot
+(before this documentation/build-tool commit) produced **byte-identical**
+UF2 images, SHA-256:
+
+`c6723cae9e54eb690235cb5cd3a9e639c0bc93c7e38e1e55296a03c8b6b3e8ed`
+
+An earlier pair of builds with randomized temporary directory paths embedded
+in diagnostics differed in 88 bytes. Normalizing `__FILE__` paths via
+`-ffile-prefix-map` while preserving the RP2040 architecture/ABI flags,
+and pinning `SOURCE_DATE_EPOCH` to the source commit fixed this issue.
+
+**The hash identifies that specific source commit and toolchain environment.**
+Future WIP commits may change the source-derived `PICO_BUILD_NUMBER`, so their
+UF2 hashes must be recomputed; do not treat the value above as the universal
+hash for v5.3. This verification is limited to the local pinned WSL/GCC/Pico
+SDK build setup, not cross-machine reproducibility or live hardware.

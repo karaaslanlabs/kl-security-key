@@ -6,6 +6,8 @@ on:
     paths:
       - 'patches/hid-v5.3-*.patch'
       - 'tests/offdevice/hid_hardening/**'
+      - 'scripts/build-hid-v53-offdevice.sh'
+      - 'docs/engineering/hid-v5.3-offdevice-hardening.md'
       - '.github/workflows/hid-v5.3-offdevice-regression.yml'
   workflow_dispatch:
 
@@ -27,6 +29,10 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      - name: Check off-device ARM build script syntax
+        shell: bash
+        run: bash -n scripts/build-hid-v53-offdevice.sh
 
       - name: Assert approved SDK revision
         shell: bash
