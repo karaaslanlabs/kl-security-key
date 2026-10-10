@@ -7,6 +7,13 @@ on:
       - 'patches/hid-v5.3-*.patch'
       - 'tests/offdevice/hid_hardening/**'
       - 'scripts/build-hid-v53-offdevice.sh'
+      - 'scripts/check-v53-build-inputs.py'
+      - 'scripts/check-v53-memory-layout.py'
+      - 'scripts/apply-sdk-overlay.py'
+      - 'src/fido/**'
+      - 'CMakeLists.txt'
+      - '.gitmodules'
+      - 'pico-keys-sdk'
       - 'docs/engineering/hid-v5.3-offdevice-hardening.md'
       - '.github/workflows/hid-v5.3-offdevice-regression.yml'
   workflow_dispatch:
@@ -33,6 +40,16 @@ jobs:
       - name: Check off-device ARM build script syntax
         shell: bash
         run: bash -n scripts/build-hid-v53-offdevice.sh
+
+      - name: Validate off-device build and memory-checker Python tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/check-v53-build-inputs.py \
+            scripts/check-v53-memory-layout.py \
+            tests/offdevice/hid_hardening/test_memory_layout.py
+          python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_memory_layout.py' -v
 
       - name: Assert approved SDK revision
         shell: bash
