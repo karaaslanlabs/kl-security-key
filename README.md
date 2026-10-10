@@ -6,12 +6,14 @@
 **Experimental open-source RP2040 FIDO2/WebAuthn authenticator engineering and interoperability project by Karaaslan Labs.**
 
 > **Status:** engineering/research project. **Not FIDO Alliance certified.** Not a commercial high-assurance security token.
+>
+> **Evidence boundary:** the real-device observations below belong to frozen **v5.2**. The **v5.3** hardening work is off-device only and has not been installed or verified on the physical reference.
 
 KL Security Key is a curated derivative of [`polhenarejos/pico-fido`](https://github.com/polhenarejos/pico-fido). It explores how far a low-cost RP2040 board can be taken as a physical WebAuthn authenticator while keeping identity, attestation, validation evidence and trust boundaries explicit.
 
 ## At a glance
 
-| Area | Current engineering reference |
+| Area | Frozen v5.2 physical reference |
 | --- | --- |
 | Hardware | RP2040 USB development board |
 | Transport | USB FIDO HID |
@@ -30,7 +32,9 @@ The project began with a practical question: can an inexpensive development boar
 
 The interesting work turned out not to be simply making RP2040 run FIDO2. The harder parts were authenticator identity, physical user presence, attestation, Windows behavior, reproducible source changes, relying-party interoperability and knowing exactly what the evidence does — and does not — prove.
 
-## Verified on the physical reference
+## Verified on the frozen v5.2 physical reference
+
+The results in this section were obtained with the preserved v5.2 device and must not be attributed to later source or experimental firmware builds. See [`docs/validation-evidence.md`](docs/validation-evidence.md) for the frozen UF2 SHA-256 and test boundaries.
 
 - Fresh WebAuthn registration: **PASS**.
 - Authentication / GetAssertion with the same credential: **PASS**.
@@ -45,6 +49,12 @@ The interesting work turned out not to be simply making RP2040 run FIDO2. The ha
 
 The Entra result is an interoperability result, not Microsoft certification or global authenticator recognition. See [`docs/interoperability-case-study.md`](docs/interoperability-case-study.md) for the exact boundary.
 
+## v5.3 development — off-device only
+
+The current HID/APDU/OTP hardening is tracked in [Draft PR #7](https://github.com/karaaslanlabs/kl-security-key/pull/7). It includes a patch-based SDK integration path, host-side regression tests, and local isolated ARM build evidence. **These checks are not a live-device test, full FIDO conformance test, certification, or production release.** GitHub Actions runs host/source tests and publication checks; full ARM builds have been verified locally, not in GitHub Actions.
+
+The `main` branch and its reference build do **not** automatically include the unmerged v5.3 patches. For current experimental evidence and outstanding blockers, use PR #7 rather than treating historical UF2 hashes or individual test passes as the latest hardware status. No firmware binary from this work is offered for download or flashing.
+
 ## Architecture
 
 ```mermaid
@@ -58,7 +68,7 @@ flowchart LR
 
 The validated runtime is intentionally narrow: FIDO HID is the security-key interface; unrelated keyboard/CCID-style runtime interfaces are not part of the KL reference profile.
 
-## Build the reference profile
+## Build the `main` source reference profile
 
 ```bash
 git clone --recurse-submodules https://github.com/karaaslanlabs/kl-security-key.git
@@ -68,7 +78,7 @@ export PICO_TOOLCHAIN_PATH=/path/to/arm-none-eabi-toolchain
 ./scripts/build-kl-reference.sh
 ```
 
-The build enables physical user-presence enforcement, the FIDO-only runtime profile and the packed-attestation path. Valid attestation key/certificate material must be provisioned separately; private attestation keys are not published or auto-provisioned by this repository.
+The `main` build enables physical user-presence enforcement, the FIDO-only runtime profile and the packed-attestation path; it is **not** a build of the unmerged v5.3 changes. Valid attestation key/certificate material must be provisioned separately; private attestation keys are not published or auto-provisioned by this repository. Building a UF2 does not authorize flashing a device.
 
 ## Trust boundaries and non-claims
 
@@ -121,6 +131,6 @@ Karaaslan Labs does not claim authorship of upstream Pico FIDO / Pico Keys SDK w
 
 For bounded WebAuthn/passkey debugging or FIDO2 authenticator/attestation engineering inquiries, contact `contact@karaaslanlabs.com`.
 
-Paid debugging service: <https://www.upwork.com/services/product/development-it-get-expert-webauthn-passkey-and-fido2-authentication-debugging-2106330281996723797>. This service covers software/authentication engineering; the physical KL Security Key is **not** offered for sale.
+The experimental physical KL Security Key is **not** offered for sale.
 
 Karaaslan Labs: <https://karaaslanlabs.com>
