@@ -33,6 +33,19 @@ test "$(git -C "$WORK/repo" rev-parse HEAD)" = "$(git -C "$ROOT" rev-parse HEAD)
 test "$(git -C "$WORK/repo/pico-keys-sdk" rev-parse HEAD)" = "$EXPECTED_SDK"
 test -z "$(git -C "$WORK/repo/pico-keys-sdk" status --porcelain)"
 
+# Strict local source provenance mode is required for claims of repeatability.
+# It never fetches sources or accesses devices, only checks git metadata.
+if [[ "${KL_V53_STRICT_PINS:-0}" == 1 ]]; then
+  : "${KL_SDK_THIRD_PARTY_CACHE:?Required in strict source-pin mode}"
+  : "${KL_OFFLINE_PICOTOOL_SOURCE:?Required in strict source-pin mode}"
+  python3 "$ROOT/scripts/check-v53-build-inputs.py" \
+    --sdk "$WORK/repo/pico-keys-sdk" \
+    --pico "$PICO_SDK_PATH" \
+    --third-party "$KL_SDK_THIRD_PARTY_CACHE" \
+    --picotool "$KL_OFFLINE_PICOTOOL_SOURCE" \
+    --toolchain-bin "$PICO_TOOLCHAIN_PATH"
+fi
+
 if [[ -n "${KL_SDK_THIRD_PARTY_CACHE:-}" ]]; then
   test -d "$KL_SDK_THIRD_PARTY_CACHE" || { echo "Invalid third-party cache path" >&2; exit 5; }
   cp -a "$KL_SDK_THIRD_PARTY_CACHE" "$WORK/repo/pico-keys-sdk/third-party"

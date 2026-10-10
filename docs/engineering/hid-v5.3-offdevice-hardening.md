@@ -96,3 +96,33 @@ Future WIP commits may change the source-derived `PICO_BUILD_NUMBER`, so their
 UF2 hashes must be recomputed; do not treat the value above as the universal
 hash for v5.3. This verification is limited to the local pinned WSL/GCC/Pico
 SDK build setup, not cross-machine reproducibility or live hardware.
+
+### Strict local dependency provenance gate (off-device, no downloads)
+
+For reproducible local ARM builds, set `KL_V53_STRICT_PINS=1`. This mode
+requires a locally cached third-party source tree and picotool Git checkout.
+Before applying firmware patches, the builder runs
+`scripts/check-v53-build-inputs.py` read-only against clean source clones.
+
+Current exact pins are Pico SDK `079c6f39023649b154152db30f1d781e884879bc`,
+SDK submodule `50699e53e8ada214c27f6c9b66ea3b6f127fc655`,
+Pico TinyUSB `86ad6e56c1700e85f1c5678607a762cfe3aa2f47`,
+Mbed TLS `068ff080b369adfac81509f9b57b2afabaf82dc5`,
+TinyCBOR `c0aad2fb2137a31b9845fbaae3653540c410f215`,
+picotool 2.3.0 tag commit `6f6458d792b93685a11423b244a585eaa99eafcf`,
+and xPack GNU Arm GCC 15.2.1 (20251203).
+
+Example with locally prepared trusted checkouts:
+
+```bash
+export KL_V53_STRICT_PINS=1
+export KL_SDK_THIRD_PARTY_CACHE=/path/to/pinned/third-party
+export KL_OFFLINE_PICOTOOL_SOURCE=/path/to/pinned/picotool-git
+bash scripts/build-hid-v53-offdevice.sh
+```
+
+This gate checks local Git commits, relevant working-tree cleanliness,
+the exact picotool tag commit and compiler version; it does **not** validate
+the full upstream supply chain or authorize publishing binaries, flashing,
+resetting or using hardware. It is separate from GitHub Actions: no full
+GitHub-hosted ARM build is claimed.
