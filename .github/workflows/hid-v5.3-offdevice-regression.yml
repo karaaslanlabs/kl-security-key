@@ -65,6 +65,12 @@ jobs:
           test "$actual" = "$expected"
           echo "PINNED_SDK_PASS $actual"
 
+      - name: Negative-test pinned SDK overlay fail-closed protections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/test_sdk_overlay_guard.py
+
       - name: Verify and apply reviewed KL SDK overlay before v5.3 patches
         shell: bash
         run: |
