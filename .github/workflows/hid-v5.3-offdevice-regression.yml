@@ -7,6 +7,7 @@ on:
       - 'patches/hid-v5.3-*.patch'
       - 'tests/offdevice/hid_hardening/**'
       - 'scripts/build-hid-v53-offdevice.sh'
+      - 'scripts/write-v53-uf2.py'
       - 'scripts/build-kl-reference.sh'
       - 'scripts/check-v53-build-inputs.py'
       - 'scripts/check-v53-memory-layout.py'
@@ -45,6 +46,13 @@ jobs:
           bash -n scripts/build-hid-v53-offdevice.sh
           bash -n scripts/build-kl-reference.sh
           python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_build_profile.py' -v
+
+      - name: Verify strict UF2 output no-clobber and containment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/write-v53-uf2.py tests/offdevice/hid_hardening/test_uf2_output_guard.py
+          python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_uf2_output_guard.py' -v
 
       - name: Validate off-device build and memory-checker Python tests
         shell: bash
