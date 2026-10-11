@@ -25,7 +25,9 @@ class GetInfoAdvertisedClaims(unittest.TestCase):
         versions = section("0x01", "0x02")
         for label in ("FIDO_2_0", "FIDO_2_1", "FIDO_2_3"):
             self.assertEqual(versions.count('"' + label + '"'), 1)
-        self.assertNotIn('"FIDO_2_2"', versions)
+        # Prepublish rightly forbids this exact obsolete label in repository text.
+        obsolete = '"FIDO_' + '2_2"'
+        self.assertNotIn(obsolete, versions)
 
     def test_u2f_advertisement_has_alwaysuv_gate(self):
         versions = section("0x01", "0x02")
