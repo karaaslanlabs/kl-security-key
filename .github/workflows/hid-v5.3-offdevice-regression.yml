@@ -1,0 +1,89 @@
+name: HID v5.3 off-device regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'patches/hid-v5.3-*.patch'
+      - 'tests/offdevice/hid_hardening/**'
+      - 'scripts/build-hid-v53-offdevice.sh'
+      - 'scripts/check-v53-build-inputs.py'
+      - 'scripts/check-v53-memory-layout.py'
+      - 'scripts/apply-sdk-overlay.py'
+      - 'src/fido/**'
+      - 'CMakeLists.txt'
+      - '.gitmodules'
+      - 'pico-keys-sdk'
+      - 'docs/engineering/hid-v5.3-offdevice-hardening.md'
+      - '.github/workflows/hid-v5.3-offdevice-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hid-v53-offdevice-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-hid-host-regression:
+    name: Real-source HID/APDU host tests (ASan/UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout pinned source and submodule
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Check off-device ARM build script syntax
+        shell: bash
+        run: bash -n scripts/build-hid-v53-offdevice.sh
+
+      - name: Validate off-device build and memory-checker Python tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/check-v53-build-inputs.py \
+            scripts/check-v53-memory-layout.py \
+            tests/offdevice/hid_hardening/test_memory_layout.py
+          python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_memory_layout.py' -v
+
+      - name: Assert approved SDK revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git -C pico-keys-sdk rev-parse HEAD)"
+          expected="50699e53e8ada214c27f6c9b66ea3b6f127fc655"
+          test "$actual" = "$expected"
+          echo "PINNED_SDK_PASS $actual"
+
+      - name: Apply isolated WIP source patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check patches/hid-v5.3-product-guards.patch
+          git -C pico-keys-sdk apply --check ../patches/hid-v5.3-sdk-hardening.patch
+          git apply patches/hid-v5.3-product-guards.patch
+          git -C pico-keys-sdk apply ../patches/hid-v5.3-sdk-hardening.patch
+          echo "SDK_AND_PRODUCT_PATCH_APPLY_PASS"
+
+      - name: Compile actual HID/APDU source and run 21 host regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/run_host_regressions.py --sdk pico-keys-sdk
+
+      - name: Run keyboard HID OTP callback source-extraction regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/run_otp_callback_regression.py --otp-source src/fido/otp.c
+
+      - name: Test USB timeout bounds using real SDK source under ASan/UBSan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/run_usb_timeout_regression.py --usb-source pico-keys-sdk/src/usb/usb.c
