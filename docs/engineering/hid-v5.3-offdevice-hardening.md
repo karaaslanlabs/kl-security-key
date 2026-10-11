@@ -189,8 +189,16 @@ export KL_V53_OUT_FILE=/path/outside/repository/new-offdevice-candidate.uf2
 bash scripts/build-kl-reference.sh
 \`\`\`
 
-The output must not overwrite an existing file and is **never** an approved
-firmware image for physical flashing. Existing sources and the physical v5.2
+The off-repository output filename must be an **absolute `.uf2` path** in an
+**already-existing directory**. The builder checks the destination before
+compiling and uses an exclusive-create (`O_EXCL`) operation after validating
+the source UF2 frames. It refuses existing files, dangling symlinks, paths
+inside the Git repository (including symlinked parents), invalid UF2 input,
+and ambiguous relative paths. Eight device-free host regressions cover these
+controls. If output verification fails, preserve the candidate and STOP;
+never silently overwrite or delete it.
+
+The output is **never** an approved firmware image for physical flashing. Existing sources and the physical v5.2
 reference must not be modified. GitHub Actions tests the routing/fail-closed
 behavior **without** attempting full ARM compilation; full strict-source ARM
 build evidence is local-only.
