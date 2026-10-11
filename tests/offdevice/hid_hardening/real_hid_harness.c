@@ -139,7 +139,7 @@ static void verify_error(uint32_t cid,uint8_t error) {
     drain();assert(captured_n==1);CTAPHID_FRAME *f=(CTAPHID_FRAME *)captured[0];
     assert(f->cid==cid && f->init.cmd==CTAPHID_ERROR && MSG_LEN(f)==1 && f->init.data[0]==error);
 }
-static void reset_protocol(void) {msg_packet.len=msg_packet.current_len=0;last_packet_time=0;last_cmd_time=0;last_seq=0;lock=0;thread_type=0;apdu.sw=0;is_nk=false;}
+static void reset_protocol(void) {msg_packet.len=msg_packet.current_len=0;last_packet_time=0;hid_packet_timer_armed=false;last_cmd_time=0;last_seq=0;lock=0;thread_type=0;apdu.sw=0;is_nk=false;}
 static void benign_callbacks(void) {
     CTAPHID_FRAME f=first(0x1234ABCD,CTAPHID_PING,0,NULL);uint8_t out[64]={0};
     tud_hid_get_report_cb(255,0,HID_REPORT_TYPE_INPUT,out,sizeof(out));
@@ -270,6 +270,26 @@ int main(int argc,char **argv) {
         assert(driver_init_hid()==0);assert(get_send_buffer_size(ITF_HID_KB)==NULL);verify_padding=true;
         for(size_t n=0;n<=7609;n++)check_echo(CTAPHID_PING,n);
         printf("PASS: FIDO-only one HID interface, disabled keyboard, initial alloc mask %u, all 7610 payloads, logical HID allocation %zu bytes\n",argc>2?(unsigned)strtoul(argv[2],NULL,0):0,sizeof(uint16_t)+sizeof(write_status_t)+sizeof(usb_buffer_t)+sizeof(hid_tx_buffer_t));
+        return 0;
+    }
+    if(!strcmp(mode,"zero-start-timeout")) {
+        hid_init();assert(driver_init_hid()==0);
+        clock_ms=0u; /* millisecond counter has wrapped exactly to zero */
+        reset_protocol();clear_capture();
+        uint8_t data[116]={0};
+        CTAPHID_FRAME start=first(0x1234ABCD,CTAPHID_PING,sizeof data,data);
+        report(&start);
+        assert(last_packet_time==0u);
+        assert(msg_packet.len==116 && msg_packet.current_len==57);
+        clock_ms=500u;
+        hid_task();
+        assert(captured_n==0);
+        clock_ms=501u;
+        hid_task();
+        verify_error(start.cid,CTAP1_ERR_MSG_TIMEOUT);
+        reset_protocol();clear_capture();
+        clock_ms=5000u;hid_task();assert(captured_n==0);
+        puts("ZERO_START_TIMEOUT_PASS");
         return 0;
     }
     if(!strcmp(mode,"wrap-timeout")) {
