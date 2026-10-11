@@ -1,25 +1,42 @@
 # HID v5.3 off-device hardening (WIP, not conformance)
 
-This is a **local patch-and-test preparation bundle** based on the public
-`karaaslanlabs/kl-security-key` main commit `71c419cc402241bbbe3e892195d051a6d6f89956`
-and `pico-keys-sdk` submodule commit
-`50699e53e8ada214c27f6c9b66ea3b6f127fc655`.
+This is an **experimental off-device patch-and-test bundle** derived from
+the historical PR base commit `71c419cc402241bbbe3e892195d051a6d6f89956`
+(not the current `main` commit). The pinned `pico-keys-sdk` submodule is
+`50699e53e8ada214c27f6c9b66ea3b6f127fc655`. Its gitlink is unchanged.
+None of this constitutes a firmware release, hardware proof, or certification.
 
-The upstream SDK is a Git submodule. The SDK patch is intentionally not
-applied to the upstream gitlink, and is not a new certified/published release.
+## Supported v5.3 source and build order
 
-From the repository root on a disposable working copy:
+The authoritative WIP entrypoint is
+`KL_BUILD_PROFILE=v53-offdevice KL_V53_STRICT_PINS=1 bash scripts/build-kl-reference.sh`.
+Configure pinned source/toolchain, third-party cache, offline picotool and
+the off-repository output path per `docs/engineering/hid-v5.3-offdevice-hardening.md`.
+It delegates to the isolated builder **before** the reference-profile cleanup.
+Source composition is **KL USB/FIDO-only overlay first**, then the product
+and SDK v5.3 patches. The default `reference` build **does not** include
+v5.3 firmware changes.
+
+For native host tests only, use a **separate disposable checkout** with the
+pinned SDK; never apply these patches to the preserved original SDK tree:
 
 ```bash
-git apply --check patches/hid-v5.3-product-guards.patch
-git apply patches/hid-v5.3-product-guards.patch
 git submodule update --init pico-keys-sdk
+python3 scripts/apply-sdk-overlay.py --check
+python3 scripts/apply-sdk-overlay.py
+git apply --check patches/hid-v5.3-product-guards.patch
 git -C pico-keys-sdk apply --check ../patches/hid-v5.3-sdk-hardening.patch
+git apply patches/hid-v5.3-product-guards.patch
 git -C pico-keys-sdk apply ../patches/hid-v5.3-sdk-hardening.patch
 python3 tests/offdevice/hid_hardening/run_host_regressions.py --sdk pico-keys-sdk
+python3 tests/offdevice/hid_hardening/run_otp_callback_regression.py --otp-source src/fido/otp.c
+python3 tests/offdevice/hid_hardening/run_usb_timeout_regression.py --usb-source pico-keys-sdk/src/usb/usb.c
+python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_memory_layout.py' -v
+python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_build_profile.py' -v
 ```
 
-Requires gcc, Python 3, AddressSanitizer and UBSan on the **host**.
+Host tests require native GCC, Python 3, AddressSanitizer and UBSan.
+GitHub CI tests this composed source path, **not** a full ARM firmware build.
 The harness compiles the actual `hid.c` and `apdu.c` against stubs for
 application/USB/hardware interfaces. It never opens a USB device. Its tests
 include max payload 7609, buffer bounds, padding, CID/sequence, partial
@@ -28,16 +45,19 @@ data exposure. These host results **do not prove RP2040 runtime correctness**.
 
 **Known unresolved:** live MCU heap availability, concurrent USB activity,
 keyboard-enabled OTP report-buffer lifetime, firmware attestation identity
-on hardware, and official FIDO conformance. No physical flash/reset, MDS
-publication, product/security qualification claim, or GitHub publication
-is authorized by this WIP bundle.
+on hardware, and official FIDO conformance. The WIP source and draft PR
+are already public; that **does not** authorize a firmware binary release,
+physical flash/reset, MDS publication, or security/certification claims.
+Route unpublished security findings privately.
 
 Do not commit UF2s, sensitive PKI material, device-specific attestation
 identifiers, or locally generated logs.
 
-GitHub Actions workflow: .github/workflows/hid-v5.3-offdevice-regression.yml
-checks the pinned SDK commit, applies both WIP patches and runs the 21 host
-regressions. Green workflow does NOT establish device or FIDO conformance.
+GitHub Actions workflow:
+`.github/workflows/hid-v5.3-offdevice-regression.yml` checks the SDK pin,
+applies KL overlay **before** both patches, validates source composition
+and routing, then runs HID/APDU, OTP, USB timeout and memory policy host tests.
+Green CI does **not** prove GitHub ARM compilation or device/FIDO conformance.
 
 ## Keyboard HID / OTP report regression
 
