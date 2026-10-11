@@ -1,12 +1,17 @@
-# KL Security Key  HID v5.3 off-device engineering package
+# KL Security Key — HID v5.3 off-device engineering package
 
 **Status:** WIP / host tests passed / hardware HOLD / no certification claim.
 
-- Public main baseline: `71c419cc402241bbbe3e892195d051a6d6f89956`.
+- Historical PR base (not present `main`): `71c419cc402241bbbe3e892195d051a6d6f89956`.
+- Last verified public `main` SHA: `863cbe6954bf89d83926470a766b7cc568c9d9ab`; the experimental WIP branch is unmerged.
+- **Current WIP PR #7 head:** `bce7febbb6b89b1f5350c5df84ea2b77dcee8695` (latest strict UF2 validation + native tests).
+- **Most recent full local ARM build source:** `499ac4f68fbd5b78a040ddeaed51d00adc973301` (two byte-identical strict-pin builds).
 - SDK submodule baseline: `50699e53e8ada214c27f6c9b66ea3b6f127fc655`.
 - Frozen v5.2 reference UF2 SHA256:
   `8b50a9fc27094e682e0436c494a6320a97c47fdcb05bbefffe98729f18abe0d8`.
-- **Experimental** v5.3 UF2 SHA256 (off-device, never flashed):
+- **Latest two fully built local off-device v5.3 UF2 artifacts** (source `499ac4f`, never flashed/published) SHA-256:
+  `8c79b4e7019459a55f605e82e1a78547e91c447239d5f5324c45734b9bb34dc5`.
+- Historical earlier experimental UF2 SHA-256 (not current):
   `c7c022c26764d8ab98795d8b5e75d0e42f15b0f0260514f10b08e501a8c80b9d`.
 
 Changes captured here as two reviewable patches:
@@ -17,10 +22,7 @@ Changes captured here as two reviewable patches:
    allocation failure cleanup/retry, GET RESPONSE offsets, stale padding
    prevention, and explicit INIT/VERSION field initialization.
 
-The work was independently reproduced with real embedded HID/APDU **source**
-compiled into native sanitizer-backed harnesses (not a physical authenticator).
-Original recovery suite reported 20/20 host scenarios PASS, including all
-7609+1 PING lengths and 15 allocation failure combinations. The on-device
+The original 20/20 host regression suite was expanded to **21/21** real-source HID/APDU scenarios with native sanitizer-backed harnesses. GitHub WIP CI additionally runs OTP/USB and SDK-overlay/UF2-output guards; latest HID workflow run `38107153911` succeeded. This is repeatable technical evidence, **not a review by an independent security reviewer**. The on-device
 firmware has NOT been exercised or FIDO conformance tested.
 
 **STOP / not merge-ready:** The public repo pins an upstream SDK gitlink.
@@ -30,11 +32,7 @@ workflow must be validated in CI. Root+SDK patch files alone do **not** make
 the public repo build the candidate. The experimental lab also includes
 local frozen-firmware sources/configurations not represented by this patch.
 
-**Known blockers:** separate memory/USB hardware validation on safe spare
-hardware; reviewer flagged multi-interface keyboard OTP buffer pointer
-lifetime risk, unclosed for non-FIDO-only modes. Unpublished draft; no
-physical flash/reset, credential/attestation mutation, MDS, or certification
-claim.
+**Known blockers:** separate memory/USB verification on an independently authorized spare board; historical internal source inspection flagged keyboard-OTP and multiple-interface callback lifetime concerns. Host-only OTP callback tests do not establish full hardware behavior. The **Draft PR source is public**, but firmware binaries, secrets, MDS and certification claims are not authorized. There has been **no independent code-review approval**.
 
 ### Additional keyboard-HID OTP callback hardening (isolated test)
 The original keyboard GET_REPORT callback redirected the global APDU response
@@ -74,17 +72,16 @@ not a provisioned authenticator, certification, device interoperability
 result, or production release. Toolchain, Pico SDK and cached dependencies
 must be pinned separately before claiming cross-machine reproducibility.
 
-The GitHub host CI checks script syntax only; the complete ARM firmware
-build is verified in a separate Linux/WSL lab environment, not in that CI job.
+GitHub host CI checks script syntax **and** composed source invariants, 21 HID/APDU scenarios, OTP/USB, build routing, SDK overlay and UF2 output negative regressions; it **does not** perform full ARM compilation. Full ARM evidence is from separate strict-pin local Linux/WSL builds.
 
 
 ### Local byte-for-byte reproducibility validation (source snapshot)
 
-Two clean, separate, disposable RP2040 builds from the same WIP source snapshot
-(before this documentation/build-tool commit) produced **byte-identical**
-UF2 images, SHA-256:
+**Latest reproduced build:** two separate, disposable RP2040 builds from source commit `499ac4f68fbd5b78a040ddeaed51d00adc973301` produced byte-identical UF2 images SHA-256:
 
-`c6723cae9e54eb690235cb5cd3a9e639c0bc93c7e38e1e55296a03c8b6b3e8ed`
+`8c79b4e7019459a55f605e82e1a78547e91c447239d5f5324c45734b9bb34dc5`
+
+**Historical earlier source snapshot** also produced byte-identical UF2s with SHA-256 `c6723cae9e54eb690235cb5cd3a9e639c0bc93c7e38e1e55296a03c8b6b3e8ed`; that is **not** the current output.
 
 An earlier pair of builds with randomized temporary directory paths embedded
 in diagnostics differed in 88 bytes. Normalizing `__FILE__` paths via
@@ -137,10 +134,12 @@ a **project policy** minimum 128 KiB address gap between `__end__`
 and `__HeapLimit`. The threshold is an engineering regression budget,
 not a chip or FIDO requirement.
 
-At the audited source commit, linker evidence shows:
+Historical earlier ELF snapshot showed:
 - `.data`: 8,008 bytes, `.bss`: 87,128 bytes
 - Static end: `0x20017480`; `__HeapLimit=0x20040000`
-- Linker gap: **166,784 bytes (162.88 KiB)**; policy PASS
+- Historical gap: **166,784 bytes (162.88 KiB)**; policy PASS
+
+Most recent local ARM builds at source `499ac4f` instead logged **166,768 bytes (162.86 KiB)** of static linker address headroom, passing the same 128-KiB project policy. Neither value is measured live free heap.
 - Core 0 and core 1 linker stack reservations: **2,048 bytes each**
 - Production HID real-source host test: one FIDO-only HID interface has
   **9,742 bytes logical initial HID allocations** across four `calloc`
@@ -154,7 +153,7 @@ USB interrupt/core concurrency and allocation failure outside HID remain
 untested on actual hardware. The WIP branch remains NOT merge-ready.
 
 
-### USB timeout storage hardening  off-device
+### USB timeout storage hardening — off-device
 
 The v5.3 SDK patch now avoids dynamic allocation for the small interface
 timeout table. Its bounded, fixed-size storage corresponds to the five
@@ -167,17 +166,17 @@ passed. Real RP2040 heap/USB concurrency behavior is still unverified.
 
 ### Explicit standard build entrypoint for experimental v5.3
 
-The repository's existing \`scripts/build-kl-reference.sh\` now accepts the
-explicit \`KL_BUILD_PROFILE=v53-offdevice\` opt-in. It immediately delegates to
-\`scripts/build-hid-v53-offdevice.sh\` **before** any legacy reference-build
-SDK cleanup or in-place overlay logic can run. The default \`reference\`
+The repository's existing `scripts/build-kl-reference.sh` now accepts the
+explicit `KL_BUILD_PROFILE=v53-offdevice` opt-in. It immediately delegates to
+`scripts/build-hid-v53-offdevice.sh` **before** any legacy reference-build
+SDK cleanup or in-place overlay logic can run. The default `reference`
 profile remains unchanged (and must not be used as evidence of v5.3 content).
 Unsupported profiles and v5.3 invocations without explicit
-\`KL_V53_STRICT_PINS=1\` fail closed.
+`KL_V53_STRICT_PINS=1` fail closed.
 
 Usage on a workstation with independently prepared reviewed checkouts:
 
-\`\`\`bash
+```bash
 export PICO_SDK_PATH=/path/to/pinned-pico-sdk
 export PICO_TOOLCHAIN_PATH=/path/to/approved-arm-gcc/bin
 export KL_PINNED_SDK_SOURCE=/path/to/pinned-pico-keys-sdk
@@ -187,18 +186,25 @@ export KL_BUILD_PROFILE=v53-offdevice
 export KL_V53_STRICT_PINS=1
 export KL_V53_OUT_FILE=/path/outside/repository/new-offdevice-candidate.uf2
 bash scripts/build-kl-reference.sh
-\`\`\`
+```
 
 The off-repository output filename must be an **absolute `.uf2` path** in an
 **already-existing directory**. The builder checks the destination before
 compiling and uses an exclusive-create (`O_EXCL`) operation after validating
 the source UF2 frames. It refuses existing files, dangling symlinks, paths
 inside the Git repository (including symlinked parents), invalid UF2 input,
-and ambiguous relative paths. Eight device-free host regressions cover these
-controls. If output verification fails, preserve the candidate and STOP;
+and ambiguous relative paths. Thirteen device-free host regressions cover output path and RP2040-specific UF2 validation, including family ID `0xE48BFF56`, 256-byte block payloads, and contiguous addresses in the board's 2 MiB flash window. If output verification fails, preserve the candidate and STOP;
 never silently overwrite or delete it.
 
 The output is **never** an approved firmware image for physical flashing. Existing sources and the physical v5.2
 reference must not be modified. GitHub Actions tests the routing/fail-closed
 behavior **without** attempting full ARM compilation; full strict-source ARM
 build evidence is local-only.
+
+### Security-review handoff and merge-governance boundary — 2026-10-11
+
+- **Read-only GitHub rule check:** the active `main` ruleset `24385659` requires the `prepublish` status but sets required approving reviews to `0`. The separate HID regression is green but **not yet a mandatory main-branch merge check**. No permission/ruleset has been changed in this WIP documentation update.
+- **No independent reviewer approved PR #7.** Reviewer request, source review, vulnerability findings and disposition must be recorded separately; an assistant's host tests are not independent review.
+- **Required pre-merge decision (Founder / authorized repository administrator):** select a genuinely independent reviewer; set appropriate nonzero review approval and HID/SDK/UF2 host CI protections while preserving least-privilege CI, and confirm failure behavior with a safe ruleset dry-review. Do not merge on hygiene CI alone.
+- **Evidence distinction:** the most recent full ARM builds come from `499ac4f`; the current `bce7feb` code difference is an artifact validation/test-only change. Latest GitHub host CI `38107153911` and publication hygiene `38107153878` both PASSED. There is **no new full ARM build tied to the current HEAD**, hardware run, FIDO conformance, signed release, or founder acceptance.
+
