@@ -60,6 +60,13 @@ jobs:
           test "$actual" = "$expected"
           echo "PINNED_SDK_PASS $actual"
 
+      - name: Verify and apply reviewed KL SDK overlay before v5.3 patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply-sdk-overlay.py --check
+          python3 scripts/apply-sdk-overlay.py
+
       - name: Apply isolated WIP source patches
         shell: bash
         run: |
@@ -69,6 +76,25 @@ jobs:
           git apply patches/hid-v5.3-product-guards.patch
           git -C pico-keys-sdk apply ../patches/hid-v5.3-sdk-hardening.patch
           echo "SDK_AND_PRODUCT_PATCH_APPLY_PASS"
+
+      - name: Verify composed firmware source invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --reverse --check patches/hid-v5.3-product-guards.patch
+          git -C pico-keys-sdk apply --reverse --check ../patches/hid-v5.3-sdk-hardening.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          usb = Path("pico-keys-sdk/src/usb/usb.c").read_text()
+          descriptors = Path("pico-keys-sdk/src/usb/usb_descriptors.c").read_text()
+          assert "#ifdef KL_FIDO_ONLY_RUNTIME" in usb
+          assert "enabled_usb_itf = PHY_USB_ITF_HID;" in usb
+          assert "USB_TIMEOUT_COUNTER_CAPACITY 5u" in usb
+          assert "calloc(ITF_TOTAL, sizeof(uint32_t))" not in usb
+          assert "Karaaslan Labs" in descriptors and "KL Security Key" in descriptors
+          assert 'TUD_BOS_WEBUSB_DESCRIPTOR(VENDOR_REQUEST_WEBUSB, 0)' in descriptors
+          print("KL_V53_OVERLAY_AND_SDK_PATCH_COMPOSITION_PASS")
+          PY
 
       - name: Compile actual HID/APDU source and run 21 host regressions
         shell: bash
