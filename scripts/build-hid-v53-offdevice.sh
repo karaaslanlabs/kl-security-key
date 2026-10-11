@@ -5,6 +5,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK="${KL_PINNED_SDK_SOURCE:-$ROOT/pico-keys-sdk}"
 EXPECTED_SDK=50699e53e8ada214c27f6c9b66ea3b6f127fc655
+# Reject unsafe output destinations before a costly ARM build starts.
+if [[ -n "${KL_V53_OUT_FILE:-}" ]]; then
+  python3 "$ROOT/scripts/write-v53-uf2.py" \
+    --repo "$ROOT" --out "$KL_V53_OUT_FILE" --check-only
+fi
 : "${PICO_SDK_PATH:?Set PICO_SDK_PATH to a locally installed, pinned Raspberry Pi Pico SDK}"
 : "${PICO_TOOLCHAIN_PATH:?Set PICO_TOOLCHAIN_PATH to the ARM GCC toolchain bin path}"
 command -v cmake >/dev/null
@@ -105,15 +110,10 @@ test -f "$UF2"
 echo "ISOLATED_V53_ARM_BUILD_PASS"
 sha256sum "$UF2"
 if [[ -n "${KL_V53_OUT_FILE:-}" ]]; then
-  # Store the off-device artifact only at an explicit OUTSIDE-REPO destination.
-  case "$KL_V53_OUT_FILE" in "$ROOT"/*) echo "Refusing to place UF2 in Git repo" >&2; exit 6;; esac
-  # Never overwrite any file, particularly the frozen v5.2 reference.
-  test ! -e "$KL_V53_OUT_FILE" && test ! -L "$KL_V53_OUT_FILE" || {
-    echo "Refusing to overwrite an existing output file" >&2; exit 8;
-  }
-  mkdir -p "$(dirname "$KL_V53_OUT_FILE")"
-  cp -n "$UF2" "$KL_V53_OUT_FILE"
-  echo "OFFDEVICE_UF2_COPIED $KL_V53_OUT_FILE"
+  # Atomically create only a new, validated off-repository UF2 file.
+  # Never overwrite an existing file, symlink, or frozen v5.2 reference.
+  python3 "$ROOT/scripts/write-v53-uf2.py" \
+    --repo "$ROOT" --out "$KL_V53_OUT_FILE" --source "$UF2"
 fi
 if [[ "${KL_V53_KEEP_BUILD:-0}" == 1 ]]; then
   echo "DISPOSABLE_BUILD_PRESERVED $WORK"
