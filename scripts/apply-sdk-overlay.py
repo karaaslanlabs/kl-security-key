@@ -43,7 +43,8 @@ REPLACEMENTS = {
 
 
 def git(*args: str) -> str:
-    return subprocess.check_output(["git", "-C", str(SDK), *args], text=True).strip()
+    # Preserve porcelain status prefixes: a leading space marks an unstaged edit.
+    return subprocess.check_output(["git", "-C", str(SDK), *args], text=True).rstrip("\r\n")
 
 
 def expected_files() -> dict[str, str]:
