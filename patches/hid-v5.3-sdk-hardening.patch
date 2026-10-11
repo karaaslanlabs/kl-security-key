@@ -403,3 +403,34 @@
      }
  #endif
  #ifdef USB_ITF_CCID
+--- a/src/usb/usb.c
++++ b/src/usb/usb.c
+@@ -36,3 +36,7 @@
+ // Device specific functions
+-static uint32_t *timeout_counter = NULL;
++/* At most five interfaces: CTAP HID, keyboard HID, CCID, WCID and LWIP.
++ * Fixed storage avoids a late malloc failure in the USB timeout path.
++ */
++#define USB_TIMEOUT_COUNTER_CAPACITY 5u
++static uint32_t timeout_counter[USB_TIMEOUT_COUNTER_CAPACITY] = {0};
+ static uint8_t card_locked_itf = 0; // no locked
+@@ -72,2 +76,5 @@
+ void usb_set_timeout_counter(uint8_t itf, uint32_t v) {
++    if (itf >= ITF_TOTAL || itf >= USB_TIMEOUT_COUNTER_CAPACITY) {
++        return;
++    }
+     timeout_counter[itf] = v;
+@@ -162,5 +169,4 @@
+     card_locked_itf = ITF_TOTAL;
+-    if (timeout_counter == NULL) {
+-        timeout_counter = (uint32_t *)calloc(ITF_TOTAL, sizeof(uint32_t));
+-    }
++    /* A fresh USB configuration starts with no interface timeouts. */
++    memset(timeout_counter, 0, sizeof(timeout_counter));
+ #ifdef USB_ITF_HID
+@@ -371,2 +377,5 @@
+             if (timeout > 0) {
++                if (itf >= ITF_TOTAL || itf >= USB_TIMEOUT_COUNTER_CAPACITY) {
++                    return PICOKEYS_ERR_BLOCKED;
++                }
+                 if (timeout + timeout_counter[itf] < board_millis()) {

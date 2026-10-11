@@ -53,3 +53,17 @@ under AddressSanitizer and UBSan, and checks response-pointer restoration,
 status length restoration, initialized first byte, guarded report boundaries,
 and report length clamping. It is **not** a build or integration test of
 the entire OTP translation unit or live keyboard HID hardware.
+
+
+## USB timeout table (native real-source regression)
+
+`run_usb_timeout_regression.py` extracts the actual SDK `usb.c`
+timeout setter and status callback, compiles the functions with native stubs
+and runs them under ASan/UBSan. The test exercises timeout timing, bounds,
+and an invalid interface. A one-time baseline negative test reproduced the
+pre-fix failure with the original dynamically allocated timeout table.
+
+The v5.3 SDK patch replaces that small timeout allocation with fixed-size
+storage limited to the five currently supported USB interface slots.
+The baseline and frozen hardware are unchanged. This native test is not
+live USB/IRQ or cross-core concurrency verification.

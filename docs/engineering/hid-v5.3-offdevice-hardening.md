@@ -152,3 +152,15 @@ the negative gate triggers. These figures are **not** runtime free-heap
 measurement. RP2040 heap fragmentation, core-stack high-water mark,
 USB interrupt/core concurrency and allocation failure outside HID remain
 untested on actual hardware. The WIP branch remains NOT merge-ready.
+
+
+### USB timeout storage hardening  off-device
+
+The v5.3 SDK patch now avoids dynamic allocation for the small interface
+timeout table. Its bounded, fixed-size storage corresponds to the five
+possible current USB slots (HID CTAP, HID keyboard, CCID, WCID, LWIP).
+The timeout setter checks the configured interface range, and invalid
+status lookups fail closed. A native sanitizer harness compiles the relevant
+real SDK functions to check bounds and behavior. An original-source
+negative run demonstrated the pre-fix failure, and the patched source
+passed. Real RP2040 heap/USB concurrency behavior is still unverified.

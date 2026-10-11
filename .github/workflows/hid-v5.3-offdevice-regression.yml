@@ -81,3 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/offdevice/hid_hardening/run_otp_callback_regression.py --otp-source src/fido/otp.c
+
+      - name: Test USB timeout bounds using real SDK source under ASan/UBSan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/offdevice/hid_hardening/run_usb_timeout_regression.py --usb-source pico-keys-sdk/src/usb/usb.c
