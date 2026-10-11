@@ -34,7 +34,7 @@ def main():
         "-I" + str(sdk / "src"),
     ]
     cases = [
-        ["pending-apdu-leak"], ["before-init"], ["wrap-timeout"], ["all"],
+        ["pending-apdu-leak"], ["before-init"], ["zero-start-timeout"], ["wrap-timeout"], ["all"],
         ["fido-only", "0"], ["fido-only", "15"],
     ] + [["oom", str(i)] for i in range(1, 16)]
     results = []
