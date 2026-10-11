@@ -7,6 +7,7 @@ on:
       - 'patches/hid-v5.3-*.patch'
       - 'tests/offdevice/hid_hardening/**'
       - 'scripts/build-hid-v53-offdevice.sh'
+      - 'scripts/build-kl-reference.sh'
       - 'scripts/check-v53-build-inputs.py'
       - 'scripts/check-v53-memory-layout.py'
       - 'scripts/apply-sdk-overlay.py'
@@ -39,7 +40,11 @@ jobs:
 
       - name: Check off-device ARM build script syntax
         shell: bash
-        run: bash -n scripts/build-hid-v53-offdevice.sh
+        run: |
+          set -euo pipefail
+          bash -n scripts/build-hid-v53-offdevice.sh
+          bash -n scripts/build-kl-reference.sh
+          python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_build_profile.py' -v
 
       - name: Validate off-device build and memory-checker Python tests
         shell: bash

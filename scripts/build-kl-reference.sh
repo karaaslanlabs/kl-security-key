@@ -2,6 +2,24 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Explicit v5.3 opt-in: run the disposable/pinned build before legacy cleanup.
+# Never modify the frozen physical device or the original SDK checkout.
+case "${KL_BUILD_PROFILE:-reference}" in
+  v53-offdevice)
+    if [[ "${KL_V53_STRICT_PINS:-}" != 1 ]]; then
+      echo "v53-offdevice requires KL_V53_STRICT_PINS=1" >&2
+      exit 2
+    fi
+    exec bash "$ROOT/scripts/build-hid-v53-offdevice.sh"
+    ;;
+  reference)
+    ;;
+  *)
+    echo "Unsupported KL_BUILD_PROFILE (expected reference or v53-offdevice)" >&2
+    exit 2
+    ;;
+esac
+
 SDK="$ROOT/pico-keys-sdk"
 : "${PICO_SDK_PATH:?Set PICO_SDK_PATH to your Raspberry Pi Pico SDK path}"
 BUILD_DIR="${BUILD_DIR:-$ROOT/build-kl-reference}"

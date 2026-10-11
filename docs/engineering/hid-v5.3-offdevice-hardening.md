@@ -164,3 +164,33 @@ status lookups fail closed. A native sanitizer harness compiles the relevant
 real SDK functions to check bounds and behavior. An original-source
 negative run demonstrated the pre-fix failure, and the patched source
 passed. Real RP2040 heap/USB concurrency behavior is still unverified.
+
+### Explicit standard build entrypoint for experimental v5.3
+
+The repository's existing \`scripts/build-kl-reference.sh\` now accepts the
+explicit \`KL_BUILD_PROFILE=v53-offdevice\` opt-in. It immediately delegates to
+\`scripts/build-hid-v53-offdevice.sh\` **before** any legacy reference-build
+SDK cleanup or in-place overlay logic can run. The default \`reference\`
+profile remains unchanged (and must not be used as evidence of v5.3 content).
+Unsupported profiles and v5.3 invocations without explicit
+\`KL_V53_STRICT_PINS=1\` fail closed.
+
+Usage on a workstation with independently prepared reviewed checkouts:
+
+\`\`\`bash
+export PICO_SDK_PATH=/path/to/pinned-pico-sdk
+export PICO_TOOLCHAIN_PATH=/path/to/approved-arm-gcc/bin
+export KL_PINNED_SDK_SOURCE=/path/to/pinned-pico-keys-sdk
+export KL_SDK_THIRD_PARTY_CACHE=/path/to/pinned-sdk-third-party
+export KL_OFFLINE_PICOTOOL_SOURCE=/path/to/pinned-picotool
+export KL_BUILD_PROFILE=v53-offdevice
+export KL_V53_STRICT_PINS=1
+export KL_V53_OUT_FILE=/path/outside/repository/new-offdevice-candidate.uf2
+bash scripts/build-kl-reference.sh
+\`\`\`
+
+The output must not overwrite an existing file and is **never** an approved
+firmware image for physical flashing. Existing sources and the physical v5.2
+reference must not be modified. GitHub Actions tests the routing/fail-closed
+behavior **without** attempting full ARM compilation; full strict-source ARM
+build evidence is local-only.
