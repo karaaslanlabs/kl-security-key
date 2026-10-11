@@ -11,6 +11,14 @@ import struct
 import sys
 
 MAGIC0, MAGIC1, END_MAGIC = 0x0A324655, 0x9E5D5157, 0x0AB16F30
+# This helper is for the pinned KL Security Key RP2040/Pico v5.3 image,
+# not a general-purpose UF2 container validator.
+RP2040_FAMILY = 0xE48BFF56
+RP2040_FAMILY_FLAG = 0x00002000
+RP2040_FLASH_BASE = 0x10000000
+RP2040_FLASH_END = 0x10200000  # 2 MiB, Pico target
+RP2040_PAGE = 256
+
 
 
 def stop(message):
@@ -40,16 +48,22 @@ def verify_uf2(source: Path) -> str:
     if size == 0 or size % 512:
         stop("source UF2 is not block-aligned")
     count = size // 512
+    if count > (RP2040_FLASH_END - RP2040_FLASH_BASE) // RP2040_PAGE:
+        stop("source UF2 exceeds the RP2040 Pico flash window")
     digest = hashlib.sha256()
     with source.open("rb") as stream:
         for i in range(count):
             block = stream.read(512)
             header = struct.unpack_from("<8I", block, 0)
             footer, = struct.unpack_from("<I", block, 508)
+            # Strict, device-specific image validation: no empty payload,
+            # wrong family, RAM/out-of-range address, or skipped flash pages.
             if (header[0] != MAGIC0 or header[1] != MAGIC1
-                    or footer != END_MAGIC or header[5] != i
-                    or header[6] != count or header[4] > 476):
-                stop("invalid source UF2 framing or block sequence")
+                    or footer != END_MAGIC or header[2] != RP2040_FAMILY_FLAG
+                    or header[4] != RP2040_PAGE or header[7] != RP2040_FAMILY
+                    or header[5] != i or header[6] != count
+                    or header[3] != RP2040_FLASH_BASE + i * RP2040_PAGE):
+                stop("invalid source UF2 framing, RP2040 family or flash sequence")
             digest.update(block)
     return digest.hexdigest()
 
