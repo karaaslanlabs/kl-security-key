@@ -64,6 +64,12 @@ jobs:
             tests/offdevice/hid_hardening/test_memory_layout.py
           python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_memory_layout.py' -v
 
+      - name: Audit CTAP GetInfo advertised capabilities (source-only, not FIDO conformance)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests/offdevice/hid_hardening -p 'test_getinfo_claim_surface.py' -v
+
       - name: Assert approved SDK revision
         shell: bash
         run: |
