@@ -272,6 +272,22 @@ int main(int argc,char **argv) {
         printf("PASS: FIDO-only one HID interface, disabled keyboard, initial alloc mask %u, all 7610 payloads, logical HID allocation %zu bytes\n",argc>2?(unsigned)strtoul(argv[2],NULL,0):0,sizeof(uint16_t)+sizeof(write_status_t)+sizeof(usb_buffer_t)+sizeof(hid_tx_buffer_t));
         return 0;
     }
+    if(!strcmp(mode,"wrap-timeout")) {
+        hid_init();assert(driver_init_hid()==0);
+        clock_ms=UINT32_MAX-600u;
+        reset_protocol();clear_capture();
+        uint8_t data[116]={0};
+        CTAPHID_FRAME start=first(0x1234ABCD,CTAPHID_PING,sizeof data,data);
+        report(&start);
+        assert(last_packet_time==clock_ms);
+        clock_ms+=650u; /* elapsed=650; wraps millis past UINT32_MAX */
+        assert(clock_ms < 650u);
+        hid_task();
+        verify_error(start.cid,CTAP1_ERR_MSG_TIMEOUT);
+        clock_ms=1000;
+        puts("WRAP_TIMEOUT_PASS");
+        return 0;
+    }
     if(!strcmp(mode,"pending-apdu-leak")) {hid_init();assert(driver_init_hid()==0);return pending_apdu_leak_regression();}
     if(!strcmp(mode,"before-init")) {benign_callbacks();puts("PASS: callbacks before init fail closed");return 0;}
     if(!strcmp(mode,"oom")) {fail_mask=argc>2?strtoul(argv[2],NULL,0):1;hid_init();assert(alloc_calls==4);
