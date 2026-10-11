@@ -214,14 +214,16 @@
      memset((uint8_t *)ctap_resp, 0, sizeof(CTAPHID_FRAME));
      ctap_resp->cid = ctap_req->cid;
      ctap_resp->init.cmd = CTAPHID_ERROR;
-@@ -345,6 +418,9 @@
+@@ -345,6 +418,10 @@
  static uint32_t last_keepalive_time = 0;
  
  int driver_process_usb_nopacket_hid(void) {
 +    if (!hid_ctap_ready()) {
 +        return 0;
 +    }
-     if (last_packet_time > 0 && last_packet_time + 500 < board_millis()) {
+-    if (last_packet_time > 0 && last_packet_time + 500 < board_millis()) {
++    /* Unsigned elapsed-time arithmetic survives the 32-bit millisecond wrap. */
++    if (last_packet_time > 0 && (uint32_t)(board_millis() - last_packet_time) > 500u) {
          ctap_error(CTAP1_ERR_MSG_TIMEOUT);
          last_packet_time = 0;
 @@ -357,13 +433,21 @@
