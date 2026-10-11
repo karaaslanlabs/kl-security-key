@@ -4,7 +4,7 @@
 
 - Historical PR base (not present `main`): `71c419cc402241bbbe3e892195d051a6d6f89956`.
 - Last verified public `main` SHA: `863cbe6954bf89d83926470a766b7cc568c9d9ab`; the experimental WIP branch is unmerged.
-- **Current WIP PR #7 head:** `bce7febbb6b89b1f5350c5df84ea2b77dcee8695` (latest strict UF2 validation + native tests).
+- **Latest substantive UF2 validator + test source commit:** `bce7febbb6b89b1f5350c5df84ea2b77dcee8695`. Later documentation-only commits can advance the PR head; always read the live Draft PR #7 tip and matching CI before making a decision.
 - **Most recent full local ARM build source:** `499ac4f68fbd5b78a040ddeaed51d00adc973301` (two byte-identical strict-pin builds).
 - SDK submodule baseline: `50699e53e8ada214c27f6c9b66ea3b6f127fc655`.
 - Frozen v5.2 reference UF2 SHA256:
@@ -206,5 +206,5 @@ build evidence is local-only.
 - **Read-only GitHub rule check:** the active `main` ruleset `24385659` requires the `prepublish` status but sets required approving reviews to `0`. The separate HID regression is green but **not yet a mandatory main-branch merge check**. No permission/ruleset has been changed in this WIP documentation update.
 - **No independent reviewer approved PR #7.** Reviewer request, source review, vulnerability findings and disposition must be recorded separately; an assistant's host tests are not independent review.
 - **Required pre-merge decision (Founder / authorized repository administrator):** select a genuinely independent reviewer; set appropriate nonzero review approval and HID/SDK/UF2 host CI protections while preserving least-privilege CI, and confirm failure behavior with a safe ruleset dry-review. Do not merge on hygiene CI alone.
-- **Evidence distinction:** the most recent full ARM builds come from `499ac4f`; the current `bce7feb` code difference is an artifact validation/test-only change. Latest GitHub host CI `38107153911` and publication hygiene `38107153878` both PASSED. There is **no new full ARM build tied to the current HEAD**, hardware run, FIDO conformance, signed release, or founder acceptance.
+- **Evidence distinction:** the most recent full ARM builds come from `499ac4f`; UF2 validator/test-only source changes through `bce7feb` passed host CI `38107153911` and publication hygiene `38107153878`. Later documentation-only commits do not add firmware C changes or fresh ARM evidence; check the **live PR HEAD** for its own CI status. No hardware run, FIDO conformance, signed release, independent reviewer sign-off, or Founder acceptance is established.
 
