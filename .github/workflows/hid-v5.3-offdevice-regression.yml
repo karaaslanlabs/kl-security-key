@@ -115,7 +115,7 @@ jobs:
           print("KL_V53_OVERLAY_AND_SDK_PATCH_COMPOSITION_PASS")
           PY
 
-      - name: Compile actual HID/APDU source and run 21 host regressions
+      - name: Compile actual HID/APDU source and run 22 host regressions
         shell: bash
         run: |
           set -euo pipefail
