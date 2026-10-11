@@ -23,7 +23,7 @@ class UF2OutputProtection(unittest.TestCase):
         self.outdir.mkdir()
         self.source = self.base / "valid.uf2"
         block = bytearray(512)
-        struct.pack_into("<8I", block, 0, M0, M1, 0, 0x10000000, 256, 0, 1, 0)
+        struct.pack_into("<8I", block, 0, M0, M1, 0x2000, 0x10000000, 256, 0, 1, 0xE48BFF56)
         struct.pack_into("<I", block, 508, END)
         self.source.write_bytes(block)
         self.dest = self.outdir / "candidate.uf2"
@@ -73,6 +73,42 @@ class UF2OutputProtection(unittest.TestCase):
     def test_relative_or_missing_parent_rejected(self):
         self.assertNotEqual(self.call("candidate.uf2").returncode, 0)
         self.assertNotEqual(self.call(self.base / "missing" / "candidate.uf2").returncode, 0)
+
+    def corrupt_header(self, index, value):
+        block = bytearray(self.source.read_bytes())
+        struct.pack_into("<I", block, index * 4, value)
+        self.source.write_bytes(block)
+
+    def test_empty_payload_rejected(self):
+        self.corrupt_header(4, 0)
+        self.assertNotEqual(self.call().returncode, 0)
+        self.assertFalse(self.dest.exists())
+
+    def test_wrong_family_rejected(self):
+        self.corrupt_header(7, 0x12345678)
+        self.assertNotEqual(self.call().returncode, 0)
+        self.assertFalse(self.dest.exists())
+
+    def test_missing_family_flag_rejected(self):
+        self.corrupt_header(2, 0)
+        self.assertNotEqual(self.call().returncode, 0)
+        self.assertFalse(self.dest.exists())
+
+    def test_ram_instead_of_flash_rejected(self):
+        self.corrupt_header(3, 0x20000000)
+        self.assertNotEqual(self.call().returncode, 0)
+        self.assertFalse(self.dest.exists())
+
+    def test_skipped_flash_address_rejected(self):
+        first = bytearray(self.source.read_bytes())
+        second = bytearray(first)
+        struct.pack_into("<I", first, 6 * 4, 2)
+        struct.pack_into("<I", second, 5 * 4, 1)
+        struct.pack_into("<I", second, 6 * 4, 2)
+        struct.pack_into("<I", second, 3 * 4, 0x10000400)
+        self.source.write_bytes(first + second)
+        self.assertNotEqual(self.call().returncode, 0)
+        self.assertFalse(self.dest.exists())
 
     def test_invalid_uf2_cannot_create_file(self):
         self.source.write_bytes(bytes(512))
