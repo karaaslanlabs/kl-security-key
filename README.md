@@ -26,6 +26,14 @@ KL Security Key is a curated derivative of [`polhenarejos/pico-fido`](https://gi
 | Secure element | None |
 | Certification | Not FIDO Alliance certified |
 
+## Board and flash-size scope
+
+The `main` source-reference build selects `-DPICO_BOARD=pico` in [`scripts/build-kl-reference.sh`](scripts/build-kl-reference.sh), targeting the stock Raspberry Pi Pico board configuration with 2 MiB of external flash. The isolated v5.3 off-device builder also selects `-DPICO_BOARD=pico`; its [UF2 output validator](scripts/write-v53-uf2.py) checks the Pico 2 MiB flash address window. These are **source/build constraints, not physical validation of every RP2040 board**.
+
+Other RP2040 boards may have different flash capacity or board configurations. Upstream Pico FIDO [issue #278](https://github.com/polhenarejos/pico-fido/issues/278) documents a first-WebAuthn-operation failure on a larger-flash board when the firmware's compile-time flash limit did not match its runtime layout. **That upstream finding is not a reproduced KL Security Key failure**, but it illustrates why matching the RP2040 chip alone is not sufficient evidence of compatibility.
+
+Do not assume the KL reference firmware works on arbitrary RP2040 boards, or flash a device based solely on a successful build or valid UF2 framing. No alternate-board compatibility, new hardware test, or firmware binary distribution is claimed here. The frozen v5.2 physical reference has not been changed.
+
 ## Why this project exists
 
 The project began with a practical question: can an inexpensive development board become a usable physical security key for real WebAuthn sign-in, without hiding the engineering compromises?
