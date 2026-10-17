@@ -21,3 +21,54 @@ jobs:
           persist-credentials: false
       - name: Run publication gate
         run: ./scripts/prepublish-check.sh
+
+  ci-foundation:
+    name: KL CI foundation (UF2 and RAM safeguards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Fail closed on missing CI-only inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f scripts/write-v53-uf2.py
+          test -f scripts/check-v53-memory-layout.py
+          test -f tests/offdevice/hid_hardening/test_uf2_output_guard.py
+          test -f tests/offdevice/hid_hardening/test_memory_layout.py
+      - name: Run and count UF2 / synthetic RAM regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import unittest
+
+          root = "tests/offdevice/hid_hardening"
+          suites = (
+              ("test_uf2_output_guard.py", 13),
+              ("test_memory_layout.py", 6),
+          )
+          loader = unittest.TestLoader()
+          for filename, minimum in suites:
+              suite = loader.discover(root, pattern=filename)
+              count = suite.countTestCases()
+              if count < minimum:
+                  raise SystemExit(
+                      f"CI_FOUNDATION_FAIL: {filename}: "
+                      f"only {count} tests found, require at least {minimum}"
+                  )
+              result = unittest.TextTestRunner(verbosity=2).run(suite)
+              if result.testsRun != count or result.skipped or result.expectedFailures:
+                  raise SystemExit(
+                      f"CI_FOUNDATION_FAIL: {filename}: "
+                      f"ran {result.testsRun}/{count}, "
+                      f"skipped={len(result.skipped)}, "
+                      f"expected_failures={len(result.expectedFailures)}"
+                  )
+              if not result.wasSuccessful():
+                  raise SystemExit(f"CI_FOUNDATION_FAIL: {filename}: test failure")
+              print(f"CI_FOUNDATION_PASS: {filename}: {count} tests")
+          PY
