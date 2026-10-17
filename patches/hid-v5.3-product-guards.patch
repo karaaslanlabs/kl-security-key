@@ -1,0 +1,111 @@
+--- a/src/fido/fido.c
++++ b/src/fido/fido.c
+@@ -662,7 +662,9 @@
+ 
+ static int cmd_vendor(void) {
+     uint8_t *old_buf = res_APDU;
+-    driver_init_hid();
++    if (driver_init_hid() != 0) {
++        return SW_EXEC_ERROR();
++    }
+     int ret = cbor_vendor(apdu.data, apdu.nc);
+     res_APDU = old_buf;
+     if (ret != 0) {
+@@ -678,7 +680,9 @@
+ 
+ static int cmd_cbor(void) {
+     uint8_t *old_buf = res_APDU;
+-    driver_init_hid();
++    if (driver_init_hid() != 0) {
++        return SW_EXEC_ERROR();
++    }
+     int ret = cbor_parse(0x90, apdu.data, apdu.nc);
+     res_APDU = old_buf;
+     if (ret != 0) {
+--- a/src/fido/otp.c
++++ b/src/fido/otp.c
+@@ -1069,9 +1069,13 @@
+     if (frame_len > (size_t)UINT8_MAX * 7u - sizeof(uint16_t)) {
+         return PICOKEYS_WRONG_LENGTH;
+     }
++    uint16_t *pending = get_send_buffer_size(ITF_HID_KB);
++    if (!pending) {
++        return PICOKEYS_ERR_BLOCKED;
++    }
+     uint16_t crc = calculate_crc(frame, frame_len);
+     frame_len += put_uint16_le(~crc, frame + frame_len);
+-    *get_send_buffer_size(ITF_KEYBOARD) = (uint16_t)frame_len;
++    *pending = (uint16_t)frame_len;
+     otp_exp_seq = (uint8_t)((frame_len + 6u) / 7u);
+     otp_curr_seq = 0;
+     return 0;
+@@ -1082,9 +1086,13 @@
+     (void)report_id;
+     (void)bufsize;
+     if (report_type == 3) {
++        uint16_t *pending = get_send_buffer_size(ITF_HID_KB);
++        if (itf != ITF_HID_KB || !pending || !buffer || bufsize != 8) {
++            return 1;
++        }
+         DEBUG_PAYLOAD(buffer, bufsize);
+         if (buffer[7] == 0xFF) { // reset
+-            *get_send_buffer_size(ITF_KEYBOARD) = 0;
++            *pending = 0;
+             otp_curr_seq = otp_exp_seq = 0;
+             memset(otp_frame_tx, 0, sizeof(otp_frame_tx));
+         }
+@@ -1139,14 +1147,18 @@
+     (void) report_type;
+     (void) buffer;
+     (void) reqlen;
+-    uint16_t send_buffer_size = *get_send_buffer_size(ITF_KEYBOARD);
++    uint16_t *pending = get_send_buffer_size(ITF_HID_KB);
++    if (itf != ITF_HID_KB || !pending || !buffer || reqlen < 8) {
++        return 0;
++    }
++    uint16_t send_buffer_size = *pending;
+     if (send_buffer_size > 0) {
+         uint8_t seq = otp_curr_seq++;
+         memset(buffer, 0, 8);
+         memcpy(buffer, otp_frame_tx + 7 * seq, MIN(7, send_buffer_size));
+         buffer[7] = 0x40 | seq;
+         DEBUG_DATA(buffer, 8);
+-        *get_send_buffer_size(ITF_KEYBOARD) -= MIN(7, send_buffer_size);
++        *pending -= MIN(7, send_buffer_size);
+     }
+     else if (otp_curr_seq == otp_exp_seq && otp_exp_seq > 0) {
+         memset(buffer, 0, 7);
+@@ -1155,10 +1167,20 @@
+         otp_curr_seq = otp_exp_seq = 0;
+     }
+     else {
++        /* The HID GET_REPORT destination belongs to the caller and may hold
++         * only an eight-byte keyboard report. Never leave the shared APDU
++         * response pointer referencing this temporary buffer.
++         */
++        uint8_t *old_rdata = apdu.rdata;
++        uint16_t old_rlen = apdu.rlen;
++        memset(buffer, 0, 8);
+         res_APDU = buffer;
+         otp_status(true);
++        res_APDU = old_rdata;
++        res_APDU_size = old_rlen;
+         DEBUG_DATA(buffer, 8);
+     }
+ 
+-    return reqlen;
+-}
++    /* This callback initializes exactly one 8-byte keyboard report. */
++    return 8;
++}
+--- a/src/fido/version.h
++++ b/src/fido/version.h
+@@ -18,7 +18,7 @@
+ #ifndef __VERSION_H_
+ #define __VERSION_H_
+ 
+-#define PICO_FIDO_VERSION 0x0801
++#define PICO_FIDO_VERSION 0x0802
+ 
+ #define PICO_FIDO_VERSION_MAJOR ((PICO_FIDO_VERSION >> 8) & 0xff)
+ #define PICO_FIDO_VERSION_MINOR (PICO_FIDO_VERSION & 0xff)

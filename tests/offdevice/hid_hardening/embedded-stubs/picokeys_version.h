@@ -1,0 +1,3 @@
+#pragma once
+#define PICOKEYS_SDK_VERSION_MAJOR 5
+#define PICOKEYS_SDK_VERSION_MINOR 3

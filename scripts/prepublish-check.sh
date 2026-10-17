@@ -59,8 +59,13 @@ fi
 if grep -RIl 'contents: write' .github/workflows >/dev/null 2>&1; then
   fail "workflow has write content permission"
 fi
-workflow_count="$(find .github/workflows -maxdepth 1 -type f | wc -l | tr -d ' ')"
-[[ "$workflow_count" == "1" ]] || fail "unexpected workflow count: $workflow_count"
+# Only the pre-reviewed, read-only workflow pair is allowed. An unexpected
+# filename (or an extra workflow) must fail rather than broadening CI rights.
+workflow_files="$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
+allowed_workflows="$(printf '%s\n' \
+  'hid-v5.3-offdevice-regression.yml' \
+  'publication-hygiene.yml' | LC_ALL=C sort)"
+[[ "$workflow_files" == "$allowed_workflows" ]] || fail "unexpected workflow set: $workflow_files"
 
 [[ -z "$(git ls-files '*.uf2' '*.bin' '*.elf' '*.der' '*.p12' '*.pfx' '*.key')" ]] || fail "generated firmware/key container is tracked"
 grep -q 'Not FIDO Alliance certified' README.md || fail "README certification disclaimer missing"
