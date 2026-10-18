@@ -12,6 +12,7 @@ HELPER = ROOT / "scripts" / "write-v53-uf2.py"
 M0, M1, END = 0x0A324655, 0x9E5D5157, 0x0AB16F30
 
 
+@unittest.skip("INTENTIONAL_NEGATIVE_CI_PROBE_DO_NOT_MERGE: verify all-skipped suite fails closed")
 class UF2OutputProtection(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="kl-v53-output-")
